@@ -22,9 +22,8 @@ headers = {
 #  récuperer les cookies, et les transformer en dictionaire python où lesc clés et les valeurs sont des strings
 #  et remplacer la valeur de la variable cookies ci dessous
 cookies = {
-    "datadome": "awdrQVnE2ndvArwy57XqGxAzqIGWZyNh97WNta45wispPUgaKXtn9wquQiCMlCvG2R2oFbjzvD9ES2DMReUeB4bg7Noph2SXjjCFDRd_xwWM_NkARJONmJ2Qjc4~i1uq",
-    "_dd_s": "aid=6fc8ec37-4a8b-42a6-a4ce-2197775f6681&logs=0&expire=1764561788221",
-    "g_state": "{\"i_l\":0,\"i_ll\":1764560888417,\"i_b\":\"FwIMeh+24IX0MC/xpkqQ2soru0bLK4SqWq54w7o0X10\"}"
+    "g_state": "{\"i_l\":0,\"i_ll\":1764616694696,\"i_b\":\"duj/1fjxo92C5gOORXsQ8Oj8fF7dF/lX7LfTbRSBPTc\"}",
+    "_dd_s": "aid=b7f2c70e-6bd9-44a1-acd8-2e9ed9bd2990&logs=0&expire=1764617666120"
 }
 
 ## Payload de la requêtes de récupération des id d'annonces
