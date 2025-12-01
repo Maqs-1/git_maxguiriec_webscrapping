@@ -22,27 +22,9 @@ headers = {
 #  récuperer les cookies, et les transformer en dictionaire python où lesc clés et les valeurs sont des strings
 #  et remplacer la valeur de la variable cookies ci dessous
 cookies = {
-    "_gcl_au": "1.1.884435378.1764481045",
-    "_ga": "GA1.1.1042987645.1764481050",
-    "ry_ry-s3oa268o_realytics": "eyJpZCI6InJ5X0VBNzNCQkM3LUYxRkMtNDlGQy04NDgwLTlCNjgzQUIxREFFMiIsImNpZCI6bnVsbCwiZXhwIjoxNzk2MDE3MDUzMDg1LCJjcyI6bnVsbH0%3D",
-    "_ta": "fr~1~1c27cd7cdaf3330364ddfd6a094df6ea",
-    "_pin_unauth": "dWlkPU1UZzFZMkpoTkdRdFpXTmpOeTAwTXpJMkxUa3hZVFl0WldNMk0yTTBabVV3T0dFMw",
-    "kameleoonVisitorCode": "r5n6kbqu7oylpjha",
-    "__gsas": "ID=5b8fb91a0ec04096:T=1764481093:RT=1764481093:S=ALNI_MbkZXqSwad2rK3tTNGn09BSxp3kpg",
-    "_fbp": "fb.1.1764481096192.63063741880698952",
-    "_lr_env_src_ats": "false",
-    "page_viewed_buy": "2",
-    "_lr_sampling_rate": "100",
-    "_tac": "true~google|not-available",
-    "g_state": "{\"i_l\":0,\"i_ll\":1764490838719,\"i_b\":\"rYiAe+YtF2m85T4HtJ7R05xq+4aL4hINu79oY2tqwck\"}",
-    "__rtbh.uid": "%7B%22eventType%22%3A%22uid%22%2C%22id%22%3A%22unknown%22%2C%22expiryDate%22%3A%222026-11-30T08%3A20%3A38.748Z%22%7D",
-    "__rtbh.lid": "%7B%22eventType%22%3A%22lid%22%2C%22id%22%3A%22qV8rRFKUhRv76pKD0taB%22%2C%22expiryDate%22%3A%222026-11-30T08%3A20%3A38.750Z%22%7D",
-    "cto_bundle": "jHRGU19TV2NyUmxPWUEzUWs5aWpkQ1VVam80ZjJRdnJEa3IyJTJGeWplMGFFN2JSJTJCRThBNzRnRFJZNWpRcUdkMGZHemZYRHpTaUNBWm5PJTJGam5neFVqUSUyQm9yYUNQbWxLU05mJTJGVW8zMGk1WlNqMVU5T3ZoeWxpWEYxJTJGWmt0RmJtamlLaUcwUlZRNkE5SUZLM0FKaU5FR2llMm5nR2clM0QlM0Q",
-    "_uetsid": "ab976340cdae11f0af648d5ac1350286|vo5idc|2|g1g|0|2160",
-    "_uetvid": "ab97b5e0cdae11f09fad115818f2718b|11fc95l|1764490841641|1|1|bat.bing.com/p/insights/c/f",
-    "datadome": "SpW6zYaZLE9z4Os_QXOq7L80kOC87gqeg5DZaErXUDFdMUGhL3qbunkUNqomMKzTI4wdk6yl~Fdzo3Uv4G0nbu_AeKAcW39rADubdSBwiR15f5JkcmT5zmTKd3inI2Fl",
-    "_ga_MC53H9VE57": "GS2.1.s1764521991$o3$g0$t1764521991$j60$l0$h0",
-    "_dd_s": "aid=e31c6314-9e24-4128-8546-b5cadce416c6&logs=0&expire=1764522894482&rum=0"
+    "datadome": "awdrQVnE2ndvArwy57XqGxAzqIGWZyNh97WNta45wispPUgaKXtn9wquQiCMlCvG2R2oFbjzvD9ES2DMReUeB4bg7Noph2SXjjCFDRd_xwWM_NkARJONmJ2Qjc4~i1uq",
+    "_dd_s": "aid=6fc8ec37-4a8b-42a6-a4ce-2197775f6681&logs=0&expire=1764561788221",
+    "g_state": "{\"i_l\":0,\"i_ll\":1764560888417,\"i_b\":\"FwIMeh+24IX0MC/xpkqQ2soru0bLK4SqWq54w7o0X10\"}"
 }
 
 ## Payload de la requêtes de récupération des id d'annonces
