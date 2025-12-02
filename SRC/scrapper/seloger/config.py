@@ -22,8 +22,26 @@ headers = {
 #  récuperer les cookies, et les transformer en dictionaire python où lesc clés et les valeurs sont des strings
 #  et remplacer la valeur de la variable cookies ci dessous
 cookies = {
-    "g_state": "{\"i_l\":0,\"i_ll\":1764616694696,\"i_b\":\"duj/1fjxo92C5gOORXsQ8Oj8fF7dF/lX7LfTbRSBPTc\"}",
-    "_dd_s": "aid=b7f2c70e-6bd9-44a1-acd8-2e9ed9bd2990&logs=0&expire=1764617666120"
+    "_gcl_au": "1.1.884435378.1764481045",
+    "_ga": "GA1.1.1042987645.1764481050",
+    "ry_ry-s3oa268o_realytics": "eyJpZCI6InJ5X0VBNzNCQkM3LUYxRkMtNDlGQy04NDgwLTlCNjgzQUIxREFFMiIsImNpZCI6bnVsbCwiZXhwIjoxNzk2MDE3MDUzMDg1LCJjcyI6bnVsbH0%3D",
+    "_ta": "fr~1~1c27cd7cdaf3330364ddfd6a094df6ea",
+    "_pin_unauth": "dWlkPU1UZzFZMkpoTkdRdFpXTmpOeTAwTXpJMkxUa3hZVFl0WldNMk0yTTBabVV3T0dFMw",
+    "kameleoonVisitorCode": "r5n6kbqu7oylpjha",
+    "__gsas": "ID=5b8fb91a0ec04096:T=1764481093:RT=1764481093:S=ALNI_MbkZXqSwad2rK3tTNGn09BSxp3kpg",
+    "_fbp": "fb.1.1764481096192.63063741880698952",
+    "_lr_env_src_ats": "false",
+    "_lr_sampling_rate": "100",
+    "_ga_MC53H9VE57": "GS2.1.s1764521991$o3$g1$t1764522004$j47$l0$h0",
+    "page_viewed_buy": "3",
+    "g_state": "{\"i_l\":0,\"i_ll\":1764522008482,\"i_b\":\"eG7bPUCWJY+fTvlXYGLqS1Lsy3s9Rapcg2L6AuODcXY\"}",
+    "_tac": "false~google|not-available",
+    "__rtbh.uid": "%7B%22eventType%22%3A%22uid%22%2C%22id%22%3A%22unknown%22%2C%22expiryDate%22%3A%222026-11-30T17%3A00%3A17.099Z%22%7D",
+    "__rtbh.lid": "%7B%22eventType%22%3A%22lid%22%2C%22id%22%3A%22qV8rRFKUhRv76pKD0taB%22%2C%22expiryDate%22%3A%222026-11-30T17%3A00%3A17.100Z%22%7D",
+    "cto_bundle": "wi9hvF9SaGF3JTJGYVM2UCUyQjdZekh0WTc0bEZ4aHc4bG04bFFMVjhJTXJkcWczcHhkUWk0S1NoeklieFNCNXRnSGFnNGpJT3g3RCUyQjNWVkwlMkZ2TXoyZk53aiUyRndUVkRPTXc5MDdweFZxTW5oSjFEdDhHZFp3WnRRS2lHWTNFVjBIMmsyZVliY3d3elB6aWF3d3pDJTJCN0NCQWxlOVNWTlElM0QlM0Q",
+    "_uetvid": "ab97b5e0cdae11f09fad115818f2718b|1khwmbt|1764522037470|1|1|bat.bing.com/p/insights/c/y",
+    "datadome": "haLN_RGwR8tr3bcSPo5WMK_Wx0sYIkChSSRJPSCf0AfY9TJvt15pzpWto8CWVy~NAM62k_VT49CSCoL2Erg88OtwRfa5WsKKmltTXaa1GJUCzzYo_mzE4zd7AS_Wx97R",
+    "_dd_s": "aid=e31c6314-9e24-4128-8546-b5cadce416c6&logs=0&expire=1764618395534"
 }
 
 ## Payload de la requêtes de récupération des id d'annonces
