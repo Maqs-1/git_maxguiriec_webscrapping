@@ -1,8 +1,8 @@
 ### VARIABLES
 from pathlib import Path
 
-# Chemin vers le répertoire des départements
-DEPARTEMENTS_DIR = Path(__file__).parent.parent.parent / 'departements'
+# Chemin vers le répertoire des départements (dans le dossier seloger)
+DEPARTEMENTS_DIR = Path(__file__).parent / 'departements'
 
 # Entête des requêtes
 headers = {

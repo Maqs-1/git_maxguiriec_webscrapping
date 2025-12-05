@@ -105,7 +105,8 @@ def get_annonces(placeIds):
 
 def execution():
     # Étape 1: Récupération des identifiants de tout les département de France
-    departements_file = 'seloger_departements_id.csv'
+    DEPARTEMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    departements_file = DEPARTEMENTS_DIR / 'seloger_departements_id.csv'
     departements_list = []
     
     try:
@@ -116,7 +117,6 @@ def execution():
         departements_list = get_departements()
         if departements_list:
             df_departement = pd.DataFrame(departements_list)
-            DEPARTEMENTS_DIR.mkdir(parents=True, exist_ok=True)
             df_departement.to_csv(departements_file, index=False)
     
     # Étape 2: Pour chaque département on
@@ -180,4 +180,4 @@ def execution():
             df_annonces.to_csv(DEPARTEMENTS_DIR / filename, index=False)
             print(f"annonces enregistrées dans le fichier: {filename} \n")
 if __name__ == '__main__':
-    execution()
+execution()      
