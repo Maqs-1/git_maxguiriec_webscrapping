@@ -103,71 +103,80 @@ def load_data():
 df = load_data()
 
 if df is not None:
-    st.sidebar.header("🔍 Filtres")
-    
     # ============================================
-    # FILTRES
+    # FILTRES ET MÉTRIQUES DANS LA PAGE
     # ============================================
+    # # Deuxième ligne : Filtres principaux
+    st.subheader("Filtres de recherche")
     
-    # Filtre par source
-    sources = ['Tous'] + list(df['source'].unique()) if 'source' in df.columns else ['Tous']
-    selected_source = st.sidebar.selectbox("Source", sources)
+    col1, col2, col3, col4 = st.columns(4)
     
-    # Filtre par type de bien
-    if 'type_bien' in df.columns:
-        types_bien = ['Tous'] + list(df['type_bien'].dropna().unique())
-        selected_type = st.sidebar.selectbox("Type de bien", types_bien)
-    else:
-        selected_type = 'Tous'
+    with col1:
+        # Filtre par source
+        sources = ['Tous'] + list(df['source'].unique()) if 'source' in df.columns else ['Tous']
+        selected_source = st.selectbox("Source", sources)
     
-    # Filtre par ville
-    if 'ville' in df.columns:
-        villes = ['Toutes'] + sorted([str(v) for v in df['ville'].dropna().unique() if pd.notna(v)])
-        selected_ville = st.sidebar.selectbox("Ville", villes[:100])  # Limiter à 100 pour les performances
-    else:
-        selected_ville = 'Toutes'
+    with col2:
+        # Filtre par type de bien
+        if 'type_bien' in df.columns:
+            types_bien = ['Tous'] + list(df['type_bien'].dropna().unique())
+            selected_type = st.selectbox("Type de bien", types_bien)
+        else:
+            selected_type = 'Tous'
     
-    # Filtre par région (via département)
-    if 'departement' in df.columns:
-        departements = ['Tous'] + sorted([str(d) for d in df['departement'].dropna().unique()])
-        selected_dept = st.sidebar.selectbox("Département", departements)
-    else:
-        selected_dept = 'Tous'
+    with col3:
+        # Filtre par ville
+        if 'ville' in df.columns:
+            villes = ['Toutes'] + sorted([str(v) for v in df['ville'].dropna().unique() if pd.notna(v)])
+            selected_ville = st.selectbox("Ville", villes[:100])  # Limiter à 100 pour les performances
+        else:
+            selected_ville = 'Toutes'
     
-    # Filtres numériques
-    st.sidebar.markdown("### Filtres numériques")
+    with col4:
+        # Filtre par département
+        if 'departement' in df.columns:
+            departements = ['Tous'] + sorted([str(d) for d in df['departement'].dropna().unique()])
+            selected_dept = st.selectbox("Département", departements)
+        else:
+            selected_dept = 'Tous'
     
-    if 'surface' in df.columns:
-        min_surface = float(df['surface'].min())
-        max_surface = float(min(df['surface'].max(), 500))  # Limiter à 500 pour éviter les valeurs aberrantes
-        surface_range = st.sidebar.slider(
-            "Surface (m²)",
-            min_value=float(min_surface),
-            max_value=float(max_surface),
-            value=(float(min_surface), float(max_surface)),
-            step=5.0
-        )
-    else:
-        surface_range = None
+    # Troisième ligne : Filtres numériques
+    col1, col2, col3 = st.columns(3)
     
-    if 'prix' in df.columns:
-        min_prix = float(df['prix'].min())
-        max_prix = float(min(df['prix'].max(), 5000000))  # Limiter à 5M€
-        prix_range = st.sidebar.slider(
-            "Prix (€)",
-            min_value=float(min_prix),
-            max_value=float(max_prix),
-            value=(float(min_prix), float(max_prix)),
-            step=10000.0
-        )
-    else:
-        prix_range = None
+    with col1:
+        if 'surface' in df.columns:
+            min_surface = float(df['surface'].min())
+            max_surface = float(min(df['surface'].max(), 500))  # Limiter à 500 pour éviter les valeurs aberrantes
+            surface_range = st.slider(
+                "Surface (m²)",
+                min_value=float(min_surface),
+                max_value=float(max_surface),
+                value=(float(min_surface), float(max_surface)),
+                step=5.0
+            )
+        else:
+            surface_range = None
     
-    if 'nb_pieces' in df.columns:
-        pieces_options = ['Tous'] + sorted([str(int(p)) for p in df['nb_pieces'].dropna().unique() if pd.notna(p) and p > 0])
-        selected_pieces = st.sidebar.selectbox("Nombre de pièces", pieces_options)
-    else:
-        selected_pieces = 'Tous'
+    with col2:
+        if 'prix' in df.columns:
+            min_prix = float(df['prix'].min())
+            max_prix = float(min(df['prix'].max(), 5000000))  # Limiter à 5M€
+            prix_range = st.slider(
+                "Prix (€)",
+                min_value=float(min_prix),
+                max_value=float(max_prix),
+                value=(float(min_prix), float(max_prix)),
+                step=10000.0
+            )
+        else:
+            prix_range = None
+    
+    with col3:
+        if 'nb_pieces' in df.columns:
+            pieces_options = ['Tous'] + sorted([str(int(p)) for p in df['nb_pieces'].dropna().unique() if pd.notna(p) and p > 0])
+            selected_pieces = st.selectbox("Nombre de pièces", pieces_options)
+        else:
+            selected_pieces = 'Tous'
     
     # ============================================
     # APPLICATION DES FILTRES
@@ -190,12 +199,34 @@ if df is not None:
     if selected_pieces != 'Tous':
         df_filtered = df_filtered[df_filtered['nb_pieces'] == int(selected_pieces)]
     
-    # Métriques dans la sidebar
-    st.sidebar.markdown("---")
-    st.sidebar.metric("Nombre d'annonces", len(df_filtered))
-    if len(df_filtered) > 0:
-        st.sidebar.metric("Prix moyen", f"{df_filtered['prix'].mean():,.0f} €")
-        st.sidebar.metric("Prix/m² moyen", f"{df_filtered['prix_m2'].mean():,.0f} €/m²")
+    # Métriques après filtrage
+    st.markdown("---")
+    st.subheader("Résultats après filtrage")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Nombre d'annonces", f"{len(df_filtered):,}")
+    
+    with col2:
+        if len(df_filtered) > 0:
+            st.metric("Prix moyen", f"{df_filtered['prix'].mean():,.0f} €")
+        else:
+            st.metric("Prix moyen", "N/A")
+    
+    with col3:
+        if len(df_filtered) > 0:
+            st.metric("Prix/m² moyen", f"{df_filtered['prix_m2'].mean():,.0f} €/m²")
+        else:
+            st.metric("Prix/m² moyen", "N/A")
+    
+    with col4:
+        if len(df_filtered) > 0:
+            st.metric("Surface moyenne", f"{df_filtered['surface'].mean():.1f} m²")
+        else:
+            st.metric("Surface moyenne", "N/A")
+    
+    st.markdown("---")
     
     if len(df_filtered) == 0:
         st.warning("⚠️ Aucune donnée ne correspond aux filtres sélectionnés.")
@@ -233,14 +264,28 @@ if df is not None:
             """Géocode une adresse (ville + code postal) avec cache Streamlit"""
             try:
                 geolocator = Nominatim(user_agent="streamlit_immobilier_app", timeout=10)
-                address = f"{ville}, {cp}, France"
-                location = geolocator.geocode(address)
+                # Essayer d'abord avec code postal + ville
+                address = f"{cp}, {ville}, France"
+                location = geolocator.geocode(address, country_codes='fr')
                 
                 if location:
-                    time.sleep(1)  # Respecter les limites de l'API Nominatim (1 req/sec)
-                    return (location.latitude, location.longitude)
-                else:
-                    return None
+                    # Vérifier que les coordonnées sont en France
+                    lat, lon = location.latitude, location.longitude
+                    if 41.0 <= lat <= 51.5 and -5.0 <= lon <= 10.0:
+                        time.sleep(1)  # Respecter les limites de l'API Nominatim (1 req/sec)
+                        return (lat, lon)
+                
+                # Si échec, essayer juste avec le code postal
+                if cp and len(str(cp)) == 5:
+                    address2 = f"{cp}, France"
+                    location2 = geolocator.geocode(address2, country_codes='fr')
+                    if location2:
+                        lat, lon = location2.latitude, location2.longitude
+                        if 41.0 <= lat <= 51.5 and -5.0 <= lon <= 10.0:
+                            time.sleep(1)
+                            return (lat, lon)
+                
+                return None
             except (GeocoderTimedOut, GeocoderServiceError, Exception):
                 return None
         
@@ -308,62 +353,122 @@ if df is not None:
             df_map = df_map_gps
         
         if len(df_map) > 0:
-            # Créer la carte centrée sur la France
-            m = folium.Map(
-                location=[46.6034, 1.8883],  # Centre de la France
-                zoom_start=6,
-                tiles='OpenStreetMap'
-            )
-            
-            # Limiter le nombre de points pour les performances
-            max_points = 1000
-            if len(df_map) > max_points:
-                df_map_sample = df_map.sample(n=max_points, random_state=42)
-                st.info(f"ℹAffichage de {max_points} points sur {len(df_map)} annonces pour des raisons de performance.")
-            else:
-                df_map_sample = df_map
-            
-            # Créer un cluster de marqueurs
-            marker_cluster = MarkerCluster().add_to(m)
-            
-            # Ajouter les marqueurs
-            for idx, row in df_map_sample.iterrows():
-                popup_text = f"""
-                <b>Prix:</b> {row['prix']:,.0f} €<br>
-                <b>Surface:</b> {row['surface']:.0f} m²<br>
-                <b>Prix/m²:</b> {row['prix_m2']:.0f} €/m²<br>
-                """
-                if 'ville' in row and pd.notna(row['ville']):
-                    popup_text += f"<b>Ville:</b> {row['ville']}<br>"
-                if 'cp' in row and pd.notna(row['cp']):
-                    popup_text += f"<b>Code postal:</b> {row['cp']}<br>"
-                if 'type_bien' in row and pd.notna(row['type_bien']):
-                    popup_text += f"<b>Type:</b> {row['type_bien']}<br>"
+                # Créer la carte centrée sur la France avec limites géographiques
+                # Coordonnées de la France métropolitaine
+                france_bounds = [[41.0, -5.0], [51.5, 10.0]]
                 
-                # Créer l'adresse complète pour le tooltip
-                address = f"{row.get('ville', '')} {row.get('cp', '')}".strip()
-                tooltip_text = f"{row['prix']:,.0f} € - {row['surface']:.0f} m²"
-                if address:
-                    tooltip_text += f" - {address}"
+                m = folium.Map(
+                    location=[46.6034, 2.2137],  # Centre de la France
+                    zoom_start=6,
+                    tiles='CartoDB positron',  # Style plus clair et professionnel
+                    min_zoom=5,
+                    max_bounds=True  # Limiter la vue à la France
+                )
                 
-                folium.Marker(
-                    location=[row['latitude'], row['longitude']],
-                    popup=folium.Popup(popup_text, max_width=200),
-                    tooltip=tooltip_text
-                ).add_to(marker_cluster)
-            
-            # Afficher la carte
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as tmp_file:
-                m.save(tmp_file.name)
-                tmp_file_path = tmp_file.name
-            
-            with open(tmp_file_path, 'r', encoding='utf-8') as f:
-                map_html = f.read()
-            os.unlink(tmp_file_path)
-            st_html(map_html, height=600)
+                # Ajouter des limites pour forcer la vue sur la France
+                m.fit_bounds(france_bounds)
+                
+                # Limiter le nombre de points pour les performances
+                max_points = 1000
+                if len(df_map) > max_points:
+                    df_map_sample = df_map.sample(n=max_points, random_state=42)
+                    st.info(f"ℹ️ Affichage de {max_points} points sur {len(df_map)} annonces pour des raisons de performance.")
+                else:
+                    df_map_sample = df_map
+                    
+                # Créer un cluster de marqueurs avec style personnalisé
+                marker_cluster = MarkerCluster(
+                    name='Annonces immobilières',
+                    overlay=True,
+                    control=True
+                ).add_to(m)
+                
+                # Définir des couleurs selon le prix au m²
+                def get_color(prix_m2):
+                    """Retourne une couleur selon le prix au m²"""
+                    if prix_m2 < 2000:
+                        return 'green'
+                    elif prix_m2 < 4000:
+                        return 'blue'
+                    elif prix_m2 < 6000:
+                        return 'orange'
+                    else:
+                        return 'red'
+                
+                # Ajouter les marqueurs avec couleurs personnalisées
+                for idx, row in df_map_sample.iterrows():
+                    popup_text = f"""
+                <div style="font-family: Arial; min-width: 200px;">
+                    <h4 style="margin: 5px 0; color: #1f77b4;">Annonce Immobilière</h4>
+                    <hr style="margin: 5px 0;">
+                    <p style="margin: 3px 0;"><b>Prix:</b> {row['prix']:,.0f} €</p>
+                    <p style="margin: 3px 0;"><b>Surface:</b> {row['surface']:.0f} m²</p>
+                    <p style="margin: 3px 0;"><b>Prix/m²:</b> {row['prix_m2']:.0f} €/m²</p>
+                    """
+                    if 'ville' in row and pd.notna(row['ville']):
+                        popup_text += f'<p style="margin: 3px 0;"><b>Ville:</b> {row["ville"]}</p>'
+                    if 'cp' in row and pd.notna(row['cp']):
+                        popup_text += f'<p style="margin: 3px 0;"><b>Code postal:</b> {row["cp"]}</p>'
+                    if 'type_bien' in row and pd.notna(row['type_bien']):
+                        popup_text += f'<p style="margin: 3px 0;"><b>Type:</b> {row["type_bien"]}</p>'
+                    if 'nb_pieces' in row and pd.notna(row['nb_pieces']):
+                        popup_text += f'<p style="margin: 3px 0;"><b>Pièces:</b> {row["nb_pieces"]}</p>'
+                    popup_text += "</div>"
+                    
+                    # Créer l'adresse complète pour le tooltip
+                    address = f"{row.get('ville', '')} {row.get('cp', '')}".strip()
+                    tooltip_text = f"{row['prix']:,.0f} € - {row['surface']:.0f} m² ({row['prix_m2']:.0f} €/m²)"
+                    if address:
+                        tooltip_text += f" - {address}"
+                    
+                    # Couleur selon le prix au m²
+                    color = get_color(row['prix_m2'])
+                    
+                    folium.CircleMarker(
+                        location=[row['latitude'], row['longitude']],
+                        radius=6,
+                        popup=folium.Popup(popup_text, max_width=250),
+                        tooltip=tooltip_text,
+                        color='white',
+                        weight=1,
+                        fill=True,
+                        fillColor=color,
+                        fillOpacity=0.7
+                    ).add_to(marker_cluster)
+                    
+                # Ajouter un contrôle de couches pour changer le style de carte
+                folium.TileLayer('OpenStreetMap').add_to(m)
+                folium.TileLayer('CartoDB positron').add_to(m)
+                folium.TileLayer('CartoDB dark_matter').add_to(m)
+                folium.LayerControl().add_to(m)
+                
+                # Ajouter une légende pour les couleurs
+                legend_html = '''
+                <div style="position: fixed; 
+                            bottom: 50px; right: 50px; width: 150px; height: 120px; 
+                            background-color: white; border:2px solid grey; z-index:9999; 
+                            font-size:14px; padding: 10px">
+                <p style="margin: 0 0 5px 0;"><b>Prix au m²</b></p>
+                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:green"></i> &lt; 2000 €</p>
+                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:blue"></i> 2000-4000 €</p>
+                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:orange"></i> 4000-6000 €</p>
+                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:red"></i> &gt; 6000 €</p>
+                </div>
+                '''
+                m.get_root().html.add_child(folium.Element(legend_html))
+                
+                # Afficher la carte
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as tmp_file:
+                    m.save(tmp_file.name)
+                    tmp_file_path = tmp_file.name
+                
+                with open(tmp_file_path, 'r', encoding='utf-8') as f:
+                    map_html = f.read()
+                os.unlink(tmp_file_path)
+                st_html(map_html, height=600)
         else:
             st.warning("⚠️ Aucune donnée géolocalisée disponible pour les filtres sélectionnés.")
-            st.info("💡 La carte utilise les coordonnées GPS si disponibles, sinon elle géocode les adresses (ville + code postal).")
+        st.info("💡 La carte utilise les coordonnées GPS si disponibles, sinon elle géocode les adresses (ville + code postal).")
         
         st.markdown("---")
         
