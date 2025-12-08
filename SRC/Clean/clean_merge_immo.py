@@ -6,8 +6,13 @@ import re
 # =====================================================
 # CONFIG : CHEMINS (adapte si besoin)
 # =====================================================
-NOTAIRES_FILE = r"C:\Users\phili\OneDrive\Bureau\DU DATA ANALYST\COURS PYTHON\WEB SCRAPING\PROJET_IMMOBILIER\DATA\Notaires\notaires_france.csv"
-SELOGER_FOLDER = r"C:\Users\phili\OneDrive\Bureau\DU DATA ANALYST\COURS PYTHON\WEB SCRAPING\PROJET_IMMOBILIER\DATA\SeLoger"
+from pathlib import Path
+
+# Chemins relatifs depuis le script
+BASE_DIR = Path(__file__).parent.parent.parent
+NOTAIRES_FILE = BASE_DIR / "DATA" / "Notaires" / "notaires_france.csv"
+SELOGER_FOLDER = BASE_DIR / "DATA" / "Seloger"
+OUTPUT_DIR = BASE_DIR / "DATA" / "Fusion_notaires_seloger"
 
 # =====================================================
 # OUTILS
@@ -188,8 +193,16 @@ def merge_all():
 if __name__ == "__main__":
     df = merge_all()
 
-    df.to_csv("base_fusionnee.csv", index=False)
-    df.to_parquet("base_fusionnee.parquet", index=False)
+    # Créer le dossier de sortie s'il n'existe pas
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    output_csv = OUTPUT_DIR / "base_fusionnee.csv"
+    output_parquet = OUTPUT_DIR / "base_fusionnee.parquet"
+    
+    df.to_csv(output_csv, index=False)
+    df.to_parquet(output_parquet, index=False)
 
     print("\n🎉 Fusion terminée !")
-    print("📁 Fichiers générés : base_fusionnee.csv + base_fusionnee.parquet\n")
+    print(f"📁 Fichiers générés :")
+    print(f"   - {output_csv}")
+    print(f"   - {output_parquet}\n")
