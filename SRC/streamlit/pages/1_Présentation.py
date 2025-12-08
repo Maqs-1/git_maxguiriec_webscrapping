@@ -49,22 +49,14 @@ st.header("Membres de l'équipe")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader(
-        st.markdown("""
-            <a href="https://github.com/Maqs-1" style="text-decoration: none; color: #667eea; font-weight: bold;">Max Guiriec</a>
-        """)
-    )
+    st.subheader("Max Guiriec")
     st.markdown("""
     - **Rôle** : Développeur / Data Analyst
     - **Contribution** : Développement des scrapers, collecte de données
     """)
 
 with col2:
-    st.subheader(
-        st.markdown("""
-            <a href="https://github.com/git-saidmansour" style="text-decoration: none; color: #667eea; font-weight: bold;">SaÃ®d Mansour</a>
-        """)
-    )
+    st.subheader("Said Mansour")
     st.markdown("""
     - **Rôle** : Développeur / Data Analyst
     - **Contribution** : Développement des scrapers, collecte de données
