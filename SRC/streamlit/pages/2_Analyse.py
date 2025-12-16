@@ -9,9 +9,8 @@ import plotly.graph_objects as go
 from pathlib import Path
 import tempfile
 import os
-from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-import time
+import json
+import requests
 
 st.set_page_config(
     page_title="Analyse - Analyse Immobilière",
@@ -94,10 +93,104 @@ def load_data():
         if 'creationDate' in df.columns:
             df['creationDate'] = pd.to_datetime(df['creationDate'], errors='coerce')
         
+        # Ajouter les coordonnées GPS si elles ne sont pas présentes
+        if 'latitude' not in df.columns or df['latitude'].isna().all():
+            df = add_geolocation_data(df)
+        
         return df
     except Exception as e:
         st.error(f"❌ Erreur lors du chargement des données : {e}")
         return None
+
+@st.cache_data
+def add_geolocation_data(df):
+    """Ajoute les coordonnées GPS aux données en utilisant un fichier de codes postaux"""
+    try:
+        # Charger le fichier des codes postaux
+        geo_path = DATA_PATH.parent.parent / "base-officielle-codes-postaux.csv"
+        
+        if not geo_path.exists():
+            st.warning("⚠️ Fichier de géolocalisation non trouvé. Les cartes ne pourront pas s'afficher.")
+            return df
+        
+        # Charger et préparer les données géographiques
+        geo = pd.read_csv(geo_path, sep=",", engine="python")
+        
+        # Normaliser les noms de colonnes selon le format du fichier
+        if 'nom_de_la_commune' in geo.columns:
+            geo["ville_clean"] = (
+                geo["nom_de_la_commune"]
+                .astype(str)
+                .str.lower()
+                .apply(lambda x: ''.join(c for c in x if c.isalnum() or c.isspace()))
+            )
+        else:
+            # Essayer d'autres noms de colonnes possibles
+            ville_col = None
+            for col in geo.columns:
+                if 'ville' in col.lower() or 'commune' in col.lower() or 'nom' in col.lower():
+                    ville_col = col
+                    break
+            if ville_col:
+                geo["ville_clean"] = (
+                    geo[ville_col]
+                    .astype(str)
+                    .str.lower()
+                    .apply(lambda x: ''.join(c for c in x if c.isalnum() or c.isspace()))
+                )
+        
+        # Préparer les codes postaux
+        cp_col = None
+        for col in geo.columns:
+            if 'code_postal' in col.lower() or 'cp' in col.lower():
+                cp_col = col
+                break
+        
+        if cp_col:
+            geo["cp"] = geo[cp_col].astype(str).str.zfill(5)
+            geo_clean = geo[["ville_clean", "cp", "latitude", "longitude"]].drop_duplicates()
+        else:
+            st.warning("⚠️ Colonnes de codes postaux non trouvées dans le fichier géographique.")
+            return df
+        
+        # Préparer les données immobilières pour la fusion
+        df['ville_clean'] = (
+            df['ville']
+            .astype(str)
+            .str.lower()
+            .apply(lambda x: ''.join(c for c in x if c.isalnum() or c.isspace()))
+        )
+        
+        if 'cp' in df.columns:
+            df['cp'] = df['cp'].astype(str).str.zfill(5)
+        else:
+            df['cp'] = None
+        
+        # Fusionner avec les données géographiques
+        df_geo_merged = df.merge(
+            geo_clean,
+            how="left",
+            left_on=["ville_clean", "cp"],
+            right_on=["ville_clean", "cp"]
+        )
+        
+        # Nettoyer les colonnes de coordonnées
+        if 'latitude_y' in df_geo_merged.columns:
+            df_geo_merged = df_geo_merged.rename(columns={
+                "latitude_y": "latitude",
+                "longitude_y": "longitude"
+            })
+            # Supprimer les colonnes dupliquées
+            cols_to_drop = [col for col in df_geo_merged.columns if col.endswith('_x') or col.endswith('_y')]
+            df_geo_merged = df_geo_merged.drop(columns=cols_to_drop)
+        
+        st.info(f"✅ Géolocalisation ajoutée : {df_geo_merged[['latitude', 'longitude']].notna().all(axis=1).sum()} annonces géolocalisées sur {len(df_geo_merged)}")
+        
+        return df_geo_merged
+        
+    except Exception as e:
+        st.warning(f"⚠️ Erreur lors de l'ajout des données géographiques : {e}")
+        return df
 
 # Chargement des données
 df = load_data()
@@ -253,222 +346,105 @@ if df is not None:
             st.plotly_chart(fig_hist, use_container_width=True)
         
         st.markdown("---")
-        
+
         # ============================================
         # 2. CARTE DES ANNONCES GÉOLOCALISÉES
         # ============================================
-        st.header("Carte des annonces géolocalisées")
-        
-        @st.cache_data
-        def geocode_address(ville, cp):
-            """Géocode une adresse (ville + code postal) avec cache Streamlit"""
+        st.header("Cartes des annonces géolocalisées")
+
+        if len(df_filtered) > 0:
+            # ============================================
+            # SOUS-SECTION 1: CARTE CHOROPLÈTHE PAR DÉPARTEMENT
+            # ============================================
+            st.subheader("1️⃣ Prix au m² moyen par département")
+
             try:
-                geolocator = Nominatim(user_agent="streamlit_immobilier_app", timeout=10)
-                # Essayer d'abord avec code postal + ville
-                address = f"{cp}, {ville}, France"
-                location = geolocator.geocode(address, country_codes='fr')
-                
-                if location:
-                    # Vérifier que les coordonnées sont en France
-                    lat, lon = location.latitude, location.longitude
-                    if 41.0 <= lat <= 51.5 and -5.0 <= lon <= 10.0:
-                        time.sleep(1)  # Respecter les limites de l'API Nominatim (1 req/sec)
-                        return (lat, lon)
-                
-                # Si échec, essayer juste avec le code postal
-                if cp and len(str(cp)) == 5:
-                    address2 = f"{cp}, France"
-                    location2 = geolocator.geocode(address2, country_codes='fr')
-                    if location2:
-                        lat, lon = location2.latitude, location2.longitude
-                        if 41.0 <= lat <= 51.5 and -5.0 <= lon <= 10.0:
-                            time.sleep(1)
-                            return (lat, lon)
-                
-                return None
-            except (GeocoderTimedOut, GeocoderServiceError, Exception):
-                return None
-        
-        # Préparer les données pour la carte
-        df_map = df_filtered.copy()
-        
-        # Utiliser les coordonnées GPS si disponibles, sinon géocoder les adresses
-        if 'latitude' in df_map.columns and 'longitude' in df_map.columns:
-            # Filtrer les données avec coordonnées GPS valides
-            df_map_gps = df_map.dropna(subset=['latitude', 'longitude'])
-            df_map_gps = df_map_gps[(df_map_gps['latitude'] >= 41) & (df_map_gps['latitude'] <= 51) & 
-                                   (df_map_gps['longitude'] >= -5) & (df_map_gps['longitude'] <= 10)]
-        else:
-            df_map_gps = pd.DataFrame()
-        
-        # Pour les données sans GPS, utiliser les adresses (ville + cp)
-        if 'ville' in df_map.columns and 'cp' in df_map.columns:
-            df_map_no_gps = df_map[(df_map['latitude'].isna() | df_map['longitude'].isna()) if 'latitude' in df_map.columns else True]
-            df_map_no_gps = df_map_no_gps.dropna(subset=['ville', 'cp'])
-            
-            if len(df_map_no_gps) > 0:
-                # Géocoder un échantillon limité pour éviter les timeouts (max 50 pour la première fois)
-                sample_size = min(len(df_map_no_gps), 50)
-                df_map_no_gps_sample = df_map_no_gps.head(sample_size).copy()
-                
-                st.info(f"Géocodage de {sample_size} adresses... (cela peut prendre {sample_size} secondes)")
-                
-                # Géocoder les adresses avec cache
-                coordinates = []
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                for idx, (i, row) in enumerate(df_map_no_gps_sample.iterrows()):
-                    coords = geocode_address(str(row['ville']), str(row['cp']))
-                    coordinates.append(coords)
-                    progress = (idx + 1) / sample_size
-                    progress_bar.progress(progress)
-                    status_text.text(f"Géocodage {idx + 1}/{sample_size}: {row['ville']} {row['cp']}")
-                
-                # Ajouter les coordonnées géocodées
-                df_map_no_gps_sample['latitude'] = [c[0] if c else None for c in coordinates]
-                df_map_no_gps_sample['longitude'] = [c[1] if c else None for c in coordinates]
-                
-                # Filtrer les résultats valides
-                df_map_no_gps_sample = df_map_no_gps_sample.dropna(subset=['latitude', 'longitude'])
-                df_map_no_gps_sample = df_map_no_gps_sample[
-                    (df_map_no_gps_sample['latitude'] >= 41) & (df_map_no_gps_sample['latitude'] <= 51) & 
-                    (df_map_no_gps_sample['longitude'] >= -5) & (df_map_no_gps_sample['longitude'] <= 10)
-                ]
-                
-                progress_bar.empty()
-                status_text.empty()
-                
-                # Combiner avec les données GPS
-                if len(df_map_gps) > 0:
-                    df_map = pd.concat([df_map_gps, df_map_no_gps_sample], ignore_index=True)
-                else:
-                    df_map = df_map_no_gps_sample
-                
-                if len(df_map_no_gps_sample) > 0:
-                    st.success(f"✅ {len(df_map_no_gps_sample)} adresses géocodées avec succès !")
-            else:
-                df_map = df_map_gps
-        else:
-            df_map = df_map_gps
-        
-        if len(df_map) > 0:
-                # Créer la carte centrée sur la France avec limites géographiques
-                # Coordonnées de la France métropolitaine
-                france_bounds = [[41.0, -5.0], [51.5, 10.0]]
-                
-                m = folium.Map(
-                    location=[46.6034, 2.2137],  # Centre de la France
-                    zoom_start=6,
-                    tiles='CartoDB positron',  # Style plus clair et professionnel
-                    min_zoom=5,
-                    max_bounds=True  # Limiter la vue à la France
-                )
-                
-                # Ajouter des limites pour forcer la vue sur la France
-                m.fit_bounds(france_bounds)
-                
-                # Limiter le nombre de points pour les performances
-                max_points = 1000
-                if len(df_map) > max_points:
-                    df_map_sample = df_map.sample(n=max_points, random_state=42)
-                    st.info(f"ℹ️ Affichage de {max_points} points sur {len(df_map)} annonces pour des raisons de performance.")
-                else:
-                    df_map_sample = df_map
-                    
-                # Créer un cluster de marqueurs avec style personnalisé
-                marker_cluster = MarkerCluster(
-                    name='Annonces immobilières',
-                    overlay=True,
-                    control=True
-                ).add_to(m)
-                
-                # Définir des couleurs selon le prix au m²
-                def get_color(prix_m2):
-                    """Retourne une couleur selon le prix au m²"""
-                    if prix_m2 < 2000:
-                        return 'green'
-                    elif prix_m2 < 4000:
-                        return 'blue'
-                    elif prix_m2 < 6000:
-                        return 'orange'
-                    else:
-                        return 'red'
-                
-                # Ajouter les marqueurs avec couleurs personnalisées
-                for idx, row in df_map_sample.iterrows():
-                    popup_text = f"""
-                <div style="font-family: Arial; min-width: 200px;">
-                    <h4 style="margin: 5px 0; color: #1f77b4;">Annonce Immobilière</h4>
-                    <hr style="margin: 5px 0;">
-                    <p style="margin: 3px 0;"><b>Prix:</b> {row['prix']:,.0f} €</p>
-                    <p style="margin: 3px 0;"><b>Surface:</b> {row['surface']:.0f} m²</p>
-                    <p style="margin: 3px 0;"><b>Prix/m²:</b> {row['prix_m2']:.0f} €/m²</p>
-                    """
-                    if 'ville' in row and pd.notna(row['ville']):
-                        popup_text += f'<p style="margin: 3px 0;"><b>Ville:</b> {row["ville"]}</p>'
-                    if 'cp' in row and pd.notna(row['cp']):
-                        popup_text += f'<p style="margin: 3px 0;"><b>Code postal:</b> {row["cp"]}</p>'
-                    if 'type_bien' in row and pd.notna(row['type_bien']):
-                        popup_text += f'<p style="margin: 3px 0;"><b>Type:</b> {row["type_bien"]}</p>'
-                    if 'nb_pieces' in row and pd.notna(row['nb_pieces']):
-                        popup_text += f'<p style="margin: 3px 0;"><b>Pièces:</b> {row["nb_pieces"]}</p>'
-                    popup_text += "</div>"
-                    
-                    # Créer l'adresse complète pour le tooltip
-                    address = f"{row.get('ville', '')} {row.get('cp', '')}".strip()
-                    tooltip_text = f"{row['prix']:,.0f} € - {row['surface']:.0f} m² ({row['prix_m2']:.0f} €/m²)"
-                    if address:
-                        tooltip_text += f" - {address}"
-                    
-                    # Couleur selon le prix au m²
-                    color = get_color(row['prix_m2'])
-                    
-                    folium.CircleMarker(
-                        location=[row['latitude'], row['longitude']],
-                        radius=6,
-                        popup=folium.Popup(popup_text, max_width=250),
-                        tooltip=tooltip_text,
-                        color='white',
-                        weight=1,
-                        fill=True,
-                        fillColor=color,
-                        fillOpacity=0.7
-                    ).add_to(marker_cluster)
-                    
-                # Ajouter un contrôle de couches pour changer le style de carte
-                folium.TileLayer('OpenStreetMap').add_to(m)
-                folium.TileLayer('CartoDB positron').add_to(m)
-                folium.TileLayer('CartoDB dark_matter').add_to(m)
-                folium.LayerControl().add_to(m)
-                
-                # Ajouter une légende pour les couleurs
-                legend_html = '''
-                <div style="position: fixed; 
-                            bottom: 50px; right: 50px; width: 150px; height: 120px; 
-                            background-color: white; border:2px solid grey; z-index:9999; 
-                            font-size:14px; padding: 10px">
-                <p style="margin: 0 0 5px 0;"><b>Prix au m²</b></p>
-                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:green"></i> &lt; 2000 €</p>
-                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:blue"></i> 2000-4000 €</p>
-                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:orange"></i> 4000-6000 €</p>
-                <p style="margin: 2px 0;"><i class="fa fa-circle" style="color:red"></i> &gt; 6000 €</p>
-                </div>
-                '''
-                m.get_root().html.add_child(folium.Element(legend_html))
-                
-                # Afficher la carte
+                import json, requests
+
+                # Charger les données géographiques des départements français
+                url_geojson = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
+                geo_json = requests.get(url_geojson).json()
+
+                # Calculer le prix moyen par département
+                dep_mean = df_filtered.groupby("departement")["prix_m2"].mean().reset_index()
+                dep_mean["departement"] = dep_mean["departement"].astype(str).str.zfill(2)
+
+                # Créer la carte choroplèthe
+                m1 = folium.Map(location=[46.5, 2.5], zoom_start=6)
+
+                folium.Choropleth(
+                    geo_data=geo_json,
+                    data=dep_mean,
+                    columns=["departement", "prix_m2"],
+                    key_on="feature.properties.code",
+                    fill_color="YlOrRd",
+                    fill_opacity=0.8,
+                    line_opacity=0.3,
+                    legend_name="Prix/m² moyen (€)"
+                ).add_to(m1)
+
+                # Afficher la carte choroplèthe
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as tmp_file:
-                    m.save(tmp_file.name)
+                    m1.save(tmp_file.name)
                     tmp_file_path = tmp_file.name
-                
+
                 with open(tmp_file_path, 'r', encoding='utf-8') as f:
                     map_html = f.read()
                 os.unlink(tmp_file_path)
                 st_html(map_html, height=600)
+
+                st.info("💡 Cette carte montre le prix au m² moyen par département. Les couleurs plus foncées indiquent des prix plus élevés.")
+
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la création de la carte choroplèthe : {e}")
+
+            st.markdown("---")
+
+            # ============================================
+            # SOUS-SECTION 2: CARTE AVEC MARQUEURS EN GRAPPE
+            # ============================================
+            st.subheader("2️⃣ Carte avec clusters de marqueurs")
+
+            # Préparer les données pour les cartes
+            df_map = df_filtered.dropna(subset=['latitude', 'longitude']).copy()
+            df_map = df_map[(df_map['latitude'] >= 41) & (df_map['latitude'] <= 51) &
+                           (df_map['longitude'] >= -5) & (df_map['longitude'] <= 10)]
+
+            if len(df_map) > 0:
+                # Limiter l'échantillon pour les performances
+                max_sample = 10000
+                if len(df_map) > max_sample:
+                    df_map_sample = df_map.sample(n=max_sample, random_state=42)
+                    st.info(f"ℹ️ Affichage de {max_sample} points sur {len(df_map)} annonces (pour raisons de performance).")
+                else:
+                    df_map_sample = df_map
+
+                # Créer la carte avec clusters
+                m2 = folium.Map(location=[46.6, 2.5], zoom_start=6)
+                cluster = MarkerCluster().add_to(m2)
+
+                for _, row in df_map_sample.iterrows():
+                    popup_text = f"{row['prix_m2']:.0f} €/m² – {row.get('ville', 'N/A')}"
+                    folium.Marker(
+                        location=[row['latitude'], row['longitude']],
+                        popup=popup_text
+                    ).add_to(cluster)
+
+                # Afficher la carte avec marqueurs
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as tmp_file:
+                    m2.save(tmp_file.name)
+                    tmp_file_path = tmp_file.name
+
+                with open(tmp_file_path, 'r', encoding='utf-8') as f:
+                    map_html = f.read()
+                os.unlink(tmp_file_path)
+                st_html(map_html, height=600)
+
+                st.info("💡 Cliquez sur les clusters pour zoomer et voir les annonces individuelles.")
+            else:
+                st.warning("⚠️ Aucune donnée géolocalisée disponible pour les filtres sélectionnés.")
         else:
-            st.warning("⚠️ Aucune donnée géolocalisée disponible pour les filtres sélectionnés.")
-        st.info("💡 La carte utilise les coordonnées GPS si disponibles, sinon elle géocode les adresses (ville + code postal).")
+            st.warning("⚠️ Aucune donnée disponible pour les filtres sélectionnés.")
         
         st.markdown("---")
         
@@ -476,14 +452,14 @@ if df is not None:
         # 3. ÉVOLUTION TEMPORELLE DU PRIX MOYEN
         # ============================================
         st.header("Évolution temporelle du prix moyen")
-        
+
         if 'creationDate' in df_filtered.columns:
             df_temp = df_filtered.dropna(subset=['creationDate', 'prix_m2'])
             if len(df_temp) > 0:
                 # Grouper par date (mensuel)
                 df_temp['date_month'] = df_temp['creationDate'].dt.to_period('M').dt.to_timestamp()
                 evolution = df_temp.groupby('date_month')['prix_m2'].mean().reset_index()
-                
+
                 fig_evolution = px.line(
                     evolution,
                     x='date_month',
@@ -498,7 +474,35 @@ if df is not None:
             else:
                 st.warning("⚠️ Aucune donnée temporelle disponible.")
         else:
-            st.info("ℹ️ Colonne 'creationDate' non disponible. L'évolution temporelle ne peut pas être affichée.")
+            st.info("ℹ️ **Données temporelles non disponibles**")
+            st.write("Les données actuelles ne contiennent pas d'informations de date (colonne 'creationDate').")
+            st.write("💡 **Suggestion :** Pour analyser l'évolution temporelle, il faudrait ajouter des dates de création ou de mise à jour des annonces.")
+
+            # Alternative : Analyse par source de données
+            if 'source' in df_filtered.columns:
+                st.markdown("---")
+                st.subheader("📊 Analyse alternative : Prix moyen par source de données")
+
+                prix_par_source = df_filtered.groupby('source')['prix_m2'].agg(['mean', 'count']).round(2)
+                prix_par_source = prix_par_source.sort_values('mean', ascending=False)
+
+                fig_source = px.bar(
+                    prix_par_source,
+                    x=prix_par_source.index,
+                    y='mean',
+                    labels={'mean': 'Prix au m² moyen (€)', 'source': 'Source'},
+                    title="Prix au m² moyen par source de données",
+                    color='mean',
+                    color_continuous_scale='viridis'
+                )
+                fig_source.update_layout(height=400)
+                st.plotly_chart(fig_source, use_container_width=True)
+
+                # Tableau des résultats
+                st.write("**Détails par source :**")
+                prix_par_source_display = prix_par_source.copy()
+                prix_par_source_display.columns = ['Prix moyen (€/m²)', 'Nombre d\'annonces']
+                st.dataframe(prix_par_source_display)
         
         st.markdown("---")
         
@@ -523,6 +527,7 @@ if df is not None:
                     labels={'surface': 'Surface (m²)', 'prix': 'Prix (€)', 'prix_m2': 'Prix/m² (€)'},
                     title="Relation entre surface et prix",
                     color_continuous_scale='viridis',
+                    range_color=[0, 250000],  # Limiter l'échelle de couleur à 250k €/m² pour une meilleure différenciation
                     opacity=0.6
                 )
                 fig_scatter.update_layout(height=600)

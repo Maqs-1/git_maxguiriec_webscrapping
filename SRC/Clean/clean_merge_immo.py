@@ -61,14 +61,15 @@ def clean_seloger(df, dept_from_file):
         "description": "description",
         "permalink": "url",
         "latitude": "latitude",
-        "longitude": "longitude"
+        "longitude": "longitude",
+        "creationDate": "creationDate"
     }
     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
     # Colonnes obligatoires
     required = ["id","prix","surface","prix_m2","nb_pieces","nb_chambres",
                 "type_bien","ville","cp","departement","latitude","longitude",
-                "description","url"]
+                "description","url","creationDate"]
     for col in required:
         if col not in df.columns:
             df[col] = None
@@ -102,7 +103,7 @@ def clean_notaires(df):
 
     df.columns = [
         "departement","id","prix","surface","prix_m2","nb_pieces","nb_chambres",
-        "type_bien","cp","ville","localite","statut","date_maj","url","photo"
+        "type_bien","cp","ville","localite","statut","creationDate","url","photo"
     ]
 
     # Suppression éventuelle de la ligne d’en-tête
@@ -180,7 +181,7 @@ def merge_all():
     ordered = [
         "id","prix","surface","prix_m2","nb_pieces","nb_chambres",
         "type_bien","ville","cp","departement","latitude","longitude",
-        "description","url","source"
+        "description","url","source","creationDate"
     ]
 
     return full[ordered]
