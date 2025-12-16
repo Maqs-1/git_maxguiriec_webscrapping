@@ -10,6 +10,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ============================================
+# FONCTIONS UTILITAIRES
+# ============================================
+
+def categorize_property_type(type_bien):
+    """Regroupe les types de biens en catégories principales"""
+    if pd.isna(type_bien):
+        return "Non spécifié"
+    
+    type_upper = str(type_bien).upper()
+    
+    # Appartements
+    if type_upper in ['APARTMENT', 'APP']:
+        return "Appartement"
+    
+    # Maisons
+    elif type_upper in ['HOUSE', 'MAI']:
+        return "Maison"
+    
+    # Terrains
+    elif type_upper == 'TER':
+        return "Terrain"
+    
+    # Locaux commerciaux
+    elif type_upper == 'COM':
+        return "Local commercial"
+    
+    # Garages
+    elif type_upper == 'GAR':
+        return "Garage"
+    
+    # Autres types
+    else:
+        return "Autre"
+
 # CSS pour forcer la sidebar à rester visible
 st.markdown("""
 <style>
@@ -69,6 +104,9 @@ def load_data():
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Ajouter la colonne des types de biens regroupés
+        df['type_bien_categorie'] = df['type_bien'].apply(categorize_property_type)
         
         return df
     except Exception as e:
@@ -216,22 +254,22 @@ if df is not None:
     # ============================================
     st.header("Répartition par type de bien")
     
-    if 'type_bien' in df.columns:
+    if 'type_bien_categorie' in df.columns:
         col1, col2 = st.columns(2)
         
         with col1:
-            type_counts = df['type_bien'].value_counts()
+            type_counts = df['type_bien_categorie'].value_counts()
             fig_type = px.pie(
                 values=type_counts.values,
                 names=type_counts.index,
-                title="Répartition par type de bien"
+                title="Répartition par type de bien (regroupé)"
             )
             st.plotly_chart(fig_type, use_container_width=True)
         
         with col2:
             # Statistiques par type de bien
             if 'prix' in df.columns and 'prix_m2' in df.columns:
-                type_stats = df.groupby('type_bien').agg({
+                type_stats = df.groupby('type_bien_categorie').agg({
                     'prix': ['count', 'mean'],
                     'prix_m2': 'mean',
                     'surface': 'mean'

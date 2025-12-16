@@ -34,7 +34,40 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Analyse Interactive des Données Immobilières")
+# ============================================
+# FONCTIONS UTILITAIRES
+# ============================================
+
+def categorize_property_type(type_bien):
+    """Regroupe les types de biens en catégories principales"""
+    if pd.isna(type_bien):
+        return "Non spécifié"
+    
+    type_upper = str(type_bien).upper()
+    
+    # Appartements
+    if type_upper in ['APARTMENT', 'APP']:
+        return "Appartement"
+    
+    # Maisons
+    elif type_upper in ['HOUSE', 'MAI']:
+        return "Maison"
+    
+    # Terrains
+    elif type_upper == 'TER':
+        return "Terrain"
+    
+    # Locaux commerciaux
+    elif type_upper == 'COM':
+        return "Local commercial"
+    
+    # Garages
+    elif type_upper == 'GAR':
+        return "Garage"
+    
+    # Autres types
+    else:
+        return "Autre"
 
 # Fonction pour trouver le chemin des données
 def find_data_path():
@@ -92,6 +125,9 @@ def load_data():
         # Convertir creationDate en datetime si elle existe
         if 'creationDate' in df.columns:
             df['creationDate'] = pd.to_datetime(df['creationDate'], errors='coerce')
+        
+        # Ajouter la colonne des types de biens regroupés
+        df['type_bien_categorie'] = df['type_bien'].apply(categorize_property_type)
         
         # Ajouter les coordonnées GPS si elles ne sont pas présentes
         if 'latitude' not in df.columns or df['latitude'].isna().all():
@@ -197,46 +233,50 @@ df = load_data()
 
 if df is not None:
     # ============================================
-    # FILTRES ET MÉTRIQUES DANS LA PAGE
+    # SIDEBAR AVEC LES FILTRES
     # ============================================
-    # # Deuxième ligne : Filtres principaux
-    st.subheader("Filtres de recherche")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        # Filtre par source
-        sources = ['Tous'] + list(df['source'].unique()) if 'source' in df.columns else ['Tous']
-        selected_source = st.selectbox("Source", sources)
-    
-    with col2:
-        # Filtre par type de bien
-        if 'type_bien' in df.columns:
-            types_bien = ['Tous'] + list(df['type_bien'].dropna().unique())
-            selected_type = st.selectbox("Type de bien", types_bien)
-        else:
-            selected_type = 'Tous'
-    
-    with col3:
-        # Filtre par ville
-        if 'ville' in df.columns:
-            villes = ['Toutes'] + sorted([str(v) for v in df['ville'].dropna().unique() if pd.notna(v)])
-            selected_ville = st.selectbox("Ville", villes[:100])  # Limiter à 100 pour les performances
-        else:
-            selected_ville = 'Toutes'
-    
-    with col4:
-        # Filtre par département
-        if 'departement' in df.columns:
-            departements = ['Tous'] + sorted([str(d) for d in df['departement'].dropna().unique()])
-            selected_dept = st.selectbox("Département", departements)
-        else:
-            selected_dept = 'Tous'
-    
-    # Troisième ligne : Filtres numériques
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
+    with st.sidebar:
+        st.header("🔍 Filtres de recherche")
+        
+        # Filtres principaux
+        st.subheader("Filtres principaux")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Filtre par source
+            sources = ['Tous'] + list(df['source'].unique()) if 'source' in df.columns else ['Tous']
+            selected_source = st.selectbox("Source", sources)
+        
+        with col2:
+            # Filtre par type de bien (regroupé)
+            if 'type_bien_categorie' in df.columns:
+                types_bien = ['Tous'] + sorted(list(df['type_bien_categorie'].dropna().unique()))
+                selected_type = st.selectbox("Type de bien", types_bien)
+            else:
+                selected_type = 'Tous'
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Filtre par ville
+            if 'ville' in df.columns:
+                villes = ['Toutes'] + sorted([str(v) for v in df['ville'].dropna().unique() if pd.notna(v)])
+                selected_ville = st.selectbox("Ville", villes[:100])  # Limiter à 100 pour les performances
+            else:
+                selected_ville = 'Toutes'
+        
+        with col2:
+            # Filtre par département
+            if 'departement' in df.columns:
+                departements = ['Tous'] + sorted([str(d) for d in df['departement'].dropna().unique()])
+                selected_dept = st.selectbox("Département", departements)
+            else:
+                selected_dept = 'Tous'
+        
+        # Filtres numériques
+        st.subheader("Filtres numériques")
+        
         if 'surface' in df.columns:
             min_surface = float(df['surface'].min())
             max_surface = float(min(df['surface'].max(), 500))  # Limiter à 500 pour éviter les valeurs aberrantes
@@ -249,8 +289,7 @@ if df is not None:
             )
         else:
             surface_range = None
-    
-    with col2:
+        
         if 'prix' in df.columns:
             min_prix = float(df['prix'].min())
             max_prix = float(min(df['prix'].max(), 5000000))  # Limiter à 5M€
@@ -263,8 +302,7 @@ if df is not None:
             )
         else:
             prix_range = None
-    
-    with col3:
+        
         if 'nb_pieces' in df.columns:
             pieces_options = ['Tous'] + sorted([str(int(p)) for p in df['nb_pieces'].dropna().unique() if pd.notna(p) and p > 0])
             selected_pieces = st.selectbox("Nombre de pièces", pieces_options)
@@ -280,7 +318,7 @@ if df is not None:
     if selected_source != 'Tous':
         df_filtered = df_filtered[df_filtered['source'] == selected_source]
     if selected_type != 'Tous':
-        df_filtered = df_filtered[df_filtered['type_bien'] == selected_type]
+        df_filtered = df_filtered[df_filtered['type_bien_categorie'] == selected_type]
     if selected_ville != 'Toutes':
         df_filtered = df_filtered[df_filtered['ville'] == selected_ville]
     if selected_dept != 'Tous':
@@ -292,9 +330,13 @@ if df is not None:
     if selected_pieces != 'Tous':
         df_filtered = df_filtered[df_filtered['nb_pieces'] == int(selected_pieces)]
     
+    # ============================================
+    # CONTENU PRINCIPAL DE LA PAGE
+    # ============================================
+    st.title("Analyse Interactive des Données Immobilières")
+    
     # Métriques après filtrage
-    st.markdown("---")
-    st.subheader("Résultats après filtrage")
+    st.subheader("📊 Résultats après filtrage")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -330,20 +372,45 @@ if df is not None:
         st.header("Prix au m² par ville")
         
         if 'ville' in df_filtered.columns and 'prix_m2' in df_filtered.columns:
-            # Calculer le prix moyen par ville (top 20)
-            prix_par_ville = df_filtered.groupby('ville')['prix_m2'].mean().sort_values(ascending=False).head(20)
+            # Calculer le prix moyen par ville (uniquement les villes avec au moins 50 annonces)
+            ville_stats = df_filtered.groupby('ville').agg({
+                'prix_m2': ['mean', 'count']
+            }).reset_index()
             
-            fig_hist = px.bar(
-                x=prix_par_ville.values,
-                y=prix_par_ville.index,
-                orientation='h',
-                labels={'x': 'Prix au m² (€)', 'y': 'Ville'},
-                title="Top 20 des villes par prix au m² moyen",
-                color=prix_par_ville.values,
-                color_continuous_scale='viridis'
-            )
-            fig_hist.update_layout(height=600, showlegend=False)
-            st.plotly_chart(fig_hist, use_container_width=True)
+            # Aplatir les colonnes multi-index
+            ville_stats.columns = ['ville', 'prix_moyen', 'nb_annonces']
+            
+            # Filtrer les villes avec au moins 50 annonces
+            ville_stats_filtered = ville_stats[ville_stats['nb_annonces'] >= 50]
+            
+            if len(ville_stats_filtered) > 0:
+                # Trier par prix moyen décroissant et prendre le top 20
+                prix_par_ville = ville_stats_filtered.sort_values('prix_moyen', ascending=False).head(20)
+                
+                fig_hist = px.bar(
+                    x=prix_par_ville['prix_moyen'].values,
+                    y=prix_par_ville['ville'],
+                    orientation='h',
+                    labels={'x': 'Prix au m² (€)', 'y': 'Ville'},
+                    title=f"Top 20 des villes par prix au m² moyen (min. 50 annonces)",
+                    color=prix_par_ville['prix_moyen'].values,
+                    color_continuous_scale='viridis'
+                )
+                fig_hist.update_layout(height=600, showlegend=False)
+                st.plotly_chart(fig_hist, use_container_width=True)
+                
+                # Afficher quelques statistiques
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Villes analysées", f"{len(ville_stats_filtered)}")
+                with col2:
+                    st.metric("Prix moyen max", f"{prix_par_ville['prix_moyen'].max():.0f} €/m²")
+                with col3:
+                    st.metric("Prix moyen min", f"{prix_par_ville['prix_moyen'].min():.0f} €/m²")
+                
+                st.info(f"💡 Seules les villes avec au moins 50 annonces sont affichées pour garantir la fiabilité des moyennes.")
+            else:
+                st.warning("⚠️ Aucune ville n'a suffisamment d'annonces (minimum 50) pour une analyse fiable.")
         
         st.markdown("---")
 
@@ -523,7 +590,7 @@ if df is not None:
                     y='prix',
                     color='prix_m2',
                     size='prix',
-                    hover_data=['ville', 'type_bien'] if 'ville' in df_corr.columns else [],
+                    hover_data=['ville', 'type_bien_categorie'] if 'ville' in df_corr.columns else ['type_bien_categorie'],
                     labels={'surface': 'Surface (m²)', 'prix': 'Prix (€)', 'prix_m2': 'Prix/m² (€)'},
                     title="Relation entre surface et prix",
                     color_continuous_scale='viridis',
