@@ -14,6 +14,41 @@ st.set_page_config(
 # FONCTIONS UTILITAIRES
 # ============================================
 
+def get_departements_with_names(df):
+    """Retourne les départements disponibles dans les données avec leur nom formaté 'nom(code)'"""
+    try:
+        # Importer la liste des départements depuis le config
+        import sys
+        from pathlib import Path
+        config_path = Path(__file__).parent.parent.parent / 'scrapper' / 'seloger' / 'config.py'
+        sys.path.append(str(config_path.parent))
+        
+        from config import departements as departements_config
+        
+        # Créer un dictionnaire numero -> nom
+        dept_dict = {dept['numero']: dept['nom'] for dept in departements_config}
+        
+        # Obtenir les départements présents dans les données
+        if 'departement' in df.columns:
+            available_depts = set(str(d) for d in df['departement'].dropna().unique())
+            
+            # Créer la liste formatée pour les départements disponibles
+            formatted_depts = []
+            for dept_num in sorted(available_depts):
+                dept_name = dept_dict.get(dept_num, f"Département {dept_num}")
+                formatted_depts.append(f"{dept_name} ({dept_num})")
+            
+            return ['Tous'] + formatted_depts
+        else:
+            return ['Tous']
+            
+    except Exception as e:
+        # Fallback si l'import échoue
+        if 'departement' in df.columns:
+            available_depts = [str(d) for d in df['departement'].dropna().unique()]
+            return ['Tous'] + sorted(available_depts)
+        return ['Tous']
+
 def categorize_property_type(type_bien):
     """Regroupe les types de biens en catégories principales"""
     if pd.isna(type_bien):
@@ -26,24 +61,24 @@ def categorize_property_type(type_bien):
         return "Appartement"
     
     # Maisons
-    elif type_upper in ['HOUSE', 'MAI']:
+    elif type_upper in ['HOUSE', 'MAI', 'PROJECT']:
         return "Maison"
     
     # Terrains
-    elif type_upper == 'TER':
+    elif type_upper in ['TER', 'AGR', 'LAC', 'VIG']:
         return "Terrain"
     
     # Locaux commerciaux
-    elif type_upper == 'COM':
+    elif type_upper in ['COM', 'IMM', 'DIV']:
         return "Local commercial"
     
     # Garages
     elif type_upper == 'GAR':
         return "Garage"
     
-    # Autres types
+    # Par défaut, si un type n'est pas reconnu, le mettre dans Local commercial
     else:
-        return "Autre"
+        return "Local commercial"
 
 # CSS pour forcer la sidebar à rester visible
 st.markdown("""
@@ -221,11 +256,34 @@ if df is not None:
         col1, col2 = st.columns(2)
         
         with col1:
-            # Top 20 départements par nombre d'annonces
+            # Top 20 départements par nombre d'annonces (triés par nombre décroissant)
             dept_counts = df['departement'].value_counts().head(20)
+            
+            # Créer un mapping des numéros vers les noms formatés
+            dept_dict = {}
+            try:
+                import sys
+                from pathlib import Path
+                config_path = Path(__file__).parent.parent.parent / 'scrapper' / 'seloger' / 'config.py'
+                sys.path.append(str(config_path.parent))
+                from config import departements as departements_config
+                dept_dict = {dept['numero']: dept['nom'] for dept in departements_config}
+            except:
+                pass
+            
+            # Formater les labels des départements
+            dept_labels = []
+            for dept_num in dept_counts.index:
+                dept_str = str(dept_num)
+                dept_name = dept_dict.get(dept_str, f"Département {dept_str}")
+                dept_labels.append(f"{dept_name} ({dept_str})")
+            
+            # Calculer la hauteur dynamique (30 pixels par barre + marges)
+            dynamic_height = max(400, len(dept_labels) * 30 + 100)
+            
             fig_dept = px.bar(
                 x=dept_counts.values,
-                y=dept_counts.index,
+                y=dept_labels,
                 orientation='h',
                 labels={'x': 'Nombre d\'annonces', 'y': 'Département'},
                 title="Top 20 départements par nombre d'annonces"

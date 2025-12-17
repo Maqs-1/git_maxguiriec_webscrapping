@@ -34,6 +34,75 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def clean_ville_name(ville_str):
+    """Nettoie le nom de ville en supprimant adresses et coordonnées GPS"""
+    if pd.isna(ville_str):
+        return None
+    
+    ville = str(ville_str).strip()
+    
+    # Supprimer les coordonnées GPS (pattern: nombre.nombre, nombre.nombre)
+    import re
+    gps_pattern = r'\d+\.\d+,\s*\d+\.\d+'
+    ville = re.sub(gps_pattern, '', ville).strip()
+    
+    # Supprimer les adresses (numéro de rue au début)
+    address_pattern = r'^\d+\s+[A-Za-zÀ-ÿ]'
+    if re.match(address_pattern, ville):
+        # Si ça commence par un numéro, c'est probablement une adresse
+        # Garder seulement la partie après la première virgule ou le dernier numéro
+        parts = ville.split(',')
+        if len(parts) > 1:
+            ville = parts[-1].strip()  # Prendre la dernière partie (généralement la ville)
+        else:
+            # Essayer de trouver la ville après le numéro
+            ville = re.sub(r'^\d+\s+', '', ville).strip()
+    
+    # Nettoyer les espaces multiples et caractères spéciaux
+    ville = re.sub(r'\s+', ' ', ville)
+    ville = ville.strip('.,; ')
+    
+    # Si la ville est vide après nettoyage, retourner None
+    if not ville or ville.lower() in ['nan', 'none', 'null', '']:
+        return None
+    
+    return ville
+
+def get_departements_with_names(df):
+    """Retourne les départements disponibles dans les données avec leur nom formaté 'nom(code)'"""
+    try:
+        # Importer la liste des départements depuis le config
+        import sys
+        from pathlib import Path
+        config_path = Path(__file__).parent.parent.parent / 'scrapper' / 'seloger' / 'config.py'
+        sys.path.append(str(config_path.parent))
+        
+        from config import departements as departements_config
+        
+        # Créer un dictionnaire numero -> nom
+        dept_dict = {dept['numero']: dept['nom'] for dept in departements_config}
+        
+        # Obtenir les départements présents dans les données
+        if 'departement' in df.columns:
+            available_depts = set(str(d) for d in df['departement'].dropna().unique())
+            
+            # Créer la liste formatée pour les départements disponibles
+            formatted_depts = []
+            for dept_num in sorted(available_depts):
+                dept_name = dept_dict.get(dept_num, f"Département {dept_num}")
+                formatted_depts.append(f"{dept_name} ({dept_num})")
+            
+            return ['Tous'] + formatted_depts
+        else:
+            return ['Tous']
+            
+    except Exception as e:
+        # Fallback si l'import échoue
+        if 'departement' in df.columns:
+            available_depts = [str(d) for d in df['departement'].dropna().unique()]
+            return ['Tous'] + sorted(available_depts)
+        return ['Tous']
+
 # ============================================
 # FONCTIONS UTILITAIRES
 # ============================================
@@ -42,32 +111,32 @@ def categorize_property_type(type_bien):
     """Regroupe les types de biens en catégories principales"""
     if pd.isna(type_bien):
         return "Non spécifié"
-    
+
     type_upper = str(type_bien).upper()
-    
+
     # Appartements
     if type_upper in ['APARTMENT', 'APP']:
         return "Appartement"
-    
+
     # Maisons
-    elif type_upper in ['HOUSE', 'MAI']:
+    elif type_upper in ['HOUSE', 'MAI', 'PROJECT']:
         return "Maison"
-    
+
     # Terrains
-    elif type_upper == 'TER':
+    elif type_upper in ['TER', 'AGR', 'LAC', 'VIG']:
         return "Terrain"
-    
+
     # Locaux commerciaux
-    elif type_upper == 'COM':
+    elif type_upper in ['COM', 'IMM', 'DIV']:
         return "Local commercial"
-    
+
     # Garages
     elif type_upper == 'GAR':
         return "Garage"
-    
-    # Autres types
+
+    # Par défaut, si un type n'est pas reconnu, le mettre dans Local commercial
     else:
-        return "Autre"
+        return "Local commercial"
 
 # Fonction pour trouver le chemin des données
 def find_data_path():
@@ -118,9 +187,15 @@ def load_data():
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
+        # Nettoyer les noms de villes
+        if 'ville' in df.columns:
+            df['ville'] = df['ville'].apply(clean_ville_name)
+            # Supprimer les lignes où la ville est None après nettoyage
+            df = df.dropna(subset=['ville'])
+        
         # Filtrer les données invalides
         df = df.dropna(subset=['prix', 'surface', 'prix_m2'])
-        df = df[(df['prix'] > 0) & (df['surface'] > 0) & (df['prix_m2'] > 0)]
+        df = df[(df['prix'] > 70000) & (df['surface'] > 0) & (df['prix_m2'] > 9)]
         
         # Convertir creationDate en datetime si elle existe
         if 'creationDate' in df.columns:
@@ -130,8 +205,8 @@ def load_data():
         df['type_bien_categorie'] = df['type_bien'].apply(categorize_property_type)
         
         # Ajouter les coordonnées GPS si elles ne sont pas présentes
-        if 'latitude' not in df.columns or df['latitude'].isna().all():
-            df = add_geolocation_data(df)
+        # if 'latitude' not in df.columns or df['latitude'].isna().all():
+        #     df = add_geolocation_data(df)
         
         return df
     except Exception as e:
@@ -140,89 +215,96 @@ def load_data():
 
 @st.cache_data
 def add_geolocation_data(df):
-    """Ajoute les coordonnées GPS aux données en utilisant un fichier de codes postaux"""
+    """Ajoute les coordonnées GPS aux données en utilisant l'API Nominatim"""
     try:
-        # Charger le fichier des codes postaux
-        geo_path = DATA_PATH.parent.parent / "base-officielle-codes-postaux.csv"
+        import time
         
-        if not geo_path.exists():
-            st.warning("⚠️ Fichier de géolocalisation non trouvé. Les cartes ne pourront pas s'afficher.")
+        # Fonction pour géocoder une ville
+        def geocode_city(ville, cp=None):
+            try:
+                # Nettoyer le nom de la ville
+                ville_clean = str(ville).strip()
+                if cp:
+                    cp_clean = str(cp).strip()
+                    query = f"{ville_clean}, {cp_clean}, France"
+                else:
+                    query = f"{ville_clean}, France"
+                
+                # Utiliser Nominatim API
+                url = "https://nominatim.openstreetmap.org/search"
+                params = {
+                    'q': query,
+                    'format': 'json',
+                    'limit': 1,
+                    'countrycodes': 'fr'
+                }
+                headers = {'User-Agent': 'Streamlit-App/1.0'}
+                
+                response = requests.get(url, params=params, headers=headers, timeout=5)
+                response.raise_for_status()
+                
+                data = response.json()
+                if data:
+                    return float(data[0]['lat']), float(data[0]['lon'])
+                else:
+                    return None, None
+                    
+            except Exception as e:
+                return None, None
+        
+        # Vérifier si nous avons besoin de géolocaliser
+        needs_geocoding = df['latitude'].isna() | df['longitude'].isna()
+        cities_to_geocode = df[needs_geocoding][['ville', 'cp']].drop_duplicates()
+        
+        if len(cities_to_geocode) == 0:
+            st.info("✅ Toutes les données sont déjà géolocalisées.")
             return df
         
-        # Charger et préparer les données géographiques
-        geo = pd.read_csv(geo_path, sep=",", engine="python")
+        st.info(f"🔄 Géocodage de {len(cities_to_geocode)} villes uniques...")
         
-        # Normaliser les noms de colonnes selon le format du fichier
-        if 'nom_de_la_commune' in geo.columns:
-            geo["ville_clean"] = (
-                geo["nom_de_la_commune"]
-                .astype(str)
-                .str.lower()
-                .apply(lambda x: ''.join(c for c in x if c.isalnum() or c.isspace()))
-            )
-        else:
-            # Essayer d'autres noms de colonnes possibles
-            ville_col = None
-            for col in geo.columns:
-                if 'ville' in col.lower() or 'commune' in col.lower() or 'nom' in col.lower():
-                    ville_col = col
-                    break
-            if ville_col:
-                geo["ville_clean"] = (
-                    geo[ville_col]
-                    .astype(str)
-                    .str.lower()
-                    .apply(lambda x: ''.join(c for c in x if c.isalnum() or c.isspace()))
-                )
+        # Créer un cache pour éviter les appels répétés
+        geo_cache = {}
         
-        # Préparer les codes postaux
-        cp_col = None
-        for col in geo.columns:
-            if 'code_postal' in col.lower() or 'cp' in col.lower():
-                cp_col = col
-                break
+        # Géocoder chaque ville unique
+        progress_bar = st.progress(0)
+        for i, (_, row) in enumerate(cities_to_geocode.iterrows()):
+            ville = row['ville']
+            cp = row['cp'] if pd.notna(row['cp']) else None
+            
+            # Créer une clé de cache
+            cache_key = f"{ville}_{cp}"
+            
+            if cache_key not in geo_cache:
+                lat, lon = geocode_city(ville, cp)
+                geo_cache[cache_key] = (lat, lon)
+                
+                # Petite pause pour respecter les limites de l'API
+                time.sleep(0.1)
+            
+            # Mettre à jour la barre de progression
+            progress_bar.progress((i + 1) / len(cities_to_geocode))
         
-        if cp_col:
-            geo["cp"] = geo[cp_col].astype(str).str.zfill(5)
-            geo_clean = geo[["ville_clean", "cp", "latitude", "longitude"]].drop_duplicates()
-        else:
-            st.warning("⚠️ Colonnes de codes postaux non trouvées dans le fichier géographique.")
-            return df
+        progress_bar.empty()
         
-        # Préparer les données immobilières pour la fusion
-        df['ville_clean'] = (
-            df['ville']
-            .astype(str)
-            .str.lower()
-            .apply(lambda x: ''.join(c for c in x if c.isalnum() or c.isspace()))
+        # Appliquer les coordonnées aux données
+        def apply_geocoding(row):
+            if pd.notna(row['latitude']) and pd.notna(row['longitude']):
+                return row['latitude'], row['longitude']
+            
+            cache_key = f"{row['ville']}_{row['cp'] if pd.notna(row['cp']) else None}"
+            lat, lon = geo_cache.get(cache_key, (None, None))
+            return lat, lon
+        
+        df[['latitude', 'longitude']] = df.apply(
+            lambda row: apply_geocoding(row), 
+            axis=1, 
+            result_type='expand'
         )
         
-        if 'cp' in df.columns:
-            df['cp'] = df['cp'].astype(str).str.zfill(5)
-        else:
-            df['cp'] = None
+        geocoded_count = df[['latitude', 'longitude']].notna().all(axis=1).sum()
+        st.info(f"✅ Géolocalisation terminée : {geocoded_count} annonces géolocalisées sur {len(df)}")
         
-        # Fusionner avec les données géographiques
-        df_geo_merged = df.merge(
-            geo_clean,
-            how="left",
-            left_on=["ville_clean", "cp"],
-            right_on=["ville_clean", "cp"]
-        )
-        
-        # Nettoyer les colonnes de coordonnées
-        if 'latitude_y' in df_geo_merged.columns:
-            df_geo_merged = df_geo_merged.rename(columns={
-                "latitude_y": "latitude",
-                "longitude_y": "longitude"
-            })
-            # Supprimer les colonnes dupliquées
-            cols_to_drop = [col for col in df_geo_merged.columns if col.endswith('_x') or col.endswith('_y')]
-            df_geo_merged = df_geo_merged.drop(columns=cols_to_drop)
-        
-        st.info(f"✅ Géolocalisation ajoutée : {df_geo_merged[['latitude', 'longitude']].notna().all(axis=1).sum()} annonces géolocalisées sur {len(df_geo_merged)}")
-        
-        return df_geo_merged
+        return df
         
     except Exception as e:
         st.warning(f"⚠️ Erreur lors de l'ajout des données géographiques : {e}")
@@ -256,23 +338,35 @@ if df is not None:
             else:
                 selected_type = 'Tous'
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Filtre par ville
-            if 'ville' in df.columns:
-                villes = ['Toutes'] + sorted([str(v) for v in df['ville'].dropna().unique() if pd.notna(v)])
-                selected_ville = st.selectbox("Ville", villes[:100])  # Limiter à 100 pour les performances
-            else:
-                selected_ville = 'Toutes'
-        
-        with col2:
-            # Filtre par département
-            if 'departement' in df.columns:
-                departements = ['Tous'] + sorted([str(d) for d in df['departement'].dropna().unique()])
-                selected_dept = st.selectbox("Département", departements)
-            else:
+        # Filtre par département (doit être défini avant le filtre ville)
+        st.subheader("Localisation")
+        if 'departement' in df.columns:
+            departements_options = get_departements_with_names(df)
+            selected_dept_display = st.selectbox("Département", departements_options)
+            
+            # Extraire le numéro de département de la sélection
+            if selected_dept_display == 'Tous':
                 selected_dept = 'Tous'
+            else:
+                # Extraire le numéro entre parenthèses
+                import re
+                match = re.search(r'\((\d+[A-Z]*)\)', selected_dept_display)
+                selected_dept = match.group(1) if match else selected_dept_display
+        else:
+            selected_dept = 'Tous'
+        
+        # Filtre par ville (utilise toutes les villes filtrées par département)
+        if 'ville' in df.columns:
+            # Calculer les villes disponibles en fonction du département sélectionné
+            if selected_dept != 'Tous':
+                villes_disponibles = df[df['departement'].astype(str) == str(selected_dept)]['ville'].dropna().unique()
+            else:
+                villes_disponibles = df['ville'].dropna().unique()
+            
+            villes_options = ['Toutes'] + sorted([str(v) for v in villes_disponibles if pd.notna(v)])
+            selected_ville = st.selectbox("Ville", villes_options)
+        else:
+            selected_ville = 'Toutes'
         
         # Filtres numériques
         st.subheader("Filtres numériques")
@@ -322,7 +416,7 @@ if df is not None:
     if selected_ville != 'Toutes':
         df_filtered = df_filtered[df_filtered['ville'] == selected_ville]
     if selected_dept != 'Tous':
-        df_filtered = df_filtered[df_filtered['departement'] == str(selected_dept)]
+        df_filtered = df_filtered[df_filtered['departement'].astype(str) == str(selected_dept)]
     if surface_range:
         df_filtered = df_filtered[(df_filtered['surface'] >= surface_range[0]) & (df_filtered['surface'] <= surface_range[1])]
     if prix_range:
@@ -417,7 +511,7 @@ if df is not None:
         # ============================================
         # 2. CARTE DES ANNONCES GÉOLOCALISÉES
         # ============================================
-        st.header("Cartes des annonces géolocalisées")
+        # st.header("Cartes des annonces géolocalisées")
 
         if len(df_filtered) > 0:
             # ============================================
@@ -449,34 +543,33 @@ if df is not None:
                     line_opacity=0.3,
                     legend_name="Prix/m² moyen (€)"
                 ).add_to(m1)
-
+ 
                 # Afficher la carte choroplèthe
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as tmp_file:
                     m1.save(tmp_file.name)
                     tmp_file_path = tmp_file.name
-
+ 
                 with open(tmp_file_path, 'r', encoding='utf-8') as f:
                     map_html = f.read()
                 os.unlink(tmp_file_path)
-                st_html(map_html, height=600)
-
+                st_html(map_html, height=600) 
                 st.info("💡 Cette carte montre le prix au m² moyen par département. Les couleurs plus foncées indiquent des prix plus élevés.")
-
+ 
             except Exception as e:
                 st.error(f"❌ Erreur lors de la création de la carte choroplèthe : {e}")
-
+ 
             st.markdown("---")
-
+ 
             # ============================================
             # SOUS-SECTION 2: CARTE AVEC MARQUEURS EN GRAPPE
             # ============================================
             st.subheader("2️⃣ Carte avec clusters de marqueurs")
-
+ 
             # Préparer les données pour les cartes
             df_map = df_filtered.dropna(subset=['latitude', 'longitude']).copy()
             df_map = df_map[(df_map['latitude'] >= 41) & (df_map['latitude'] <= 51) &
                            (df_map['longitude'] >= -5) & (df_map['longitude'] <= 10)]
-
+ 
             if len(df_map) > 0:
                 # Limiter l'échantillon pour les performances
                 max_sample = 10000
@@ -485,28 +578,28 @@ if df is not None:
                     st.info(f"ℹ️ Affichage de {max_sample} points sur {len(df_map)} annonces (pour raisons de performance).")
                 else:
                     df_map_sample = df_map
-
+ 
                 # Créer la carte avec clusters
                 m2 = folium.Map(location=[46.6, 2.5], zoom_start=6)
                 cluster = MarkerCluster().add_to(m2)
-
+ 
                 for _, row in df_map_sample.iterrows():
                     popup_text = f"{row['prix_m2']:.0f} €/m² – {row.get('ville', 'N/A')}"
                     folium.Marker(
                         location=[row['latitude'], row['longitude']],
                         popup=popup_text
                     ).add_to(cluster)
-
+ 
                 # Afficher la carte avec marqueurs
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as tmp_file:
                     m2.save(tmp_file.name)
                     tmp_file_path = tmp_file.name
-
+ 
                 with open(tmp_file_path, 'r', encoding='utf-8') as f:
                     map_html = f.read()
                 os.unlink(tmp_file_path)
                 st_html(map_html, height=600)
-
+ 
                 st.info("💡 Cliquez sur les clusters pour zoomer et voir les annonces individuelles.")
             else:
                 st.warning("⚠️ Aucune donnée géolocalisée disponible pour les filtres sélectionnés.")
@@ -582,7 +675,7 @@ if df is not None:
             # Filtrer les valeurs aberrantes
             df_corr = df_filtered[(df_filtered['surface'] <= 500) & (df_filtered['prix'] <= 5000000)]
             
-            if len(df_corr) > 0:
+            if len(df_corr) > 0:                
                 # Scatter plot avec Plotly
                 fig_scatter = px.scatter(
                     df_corr,
@@ -594,7 +687,7 @@ if df is not None:
                     labels={'surface': 'Surface (m²)', 'prix': 'Prix (€)', 'prix_m2': 'Prix/m² (€)'},
                     title="Relation entre surface et prix",
                     color_continuous_scale='viridis',
-                    range_color=[0, 250000],  # Limiter l'échelle de couleur à 250k €/m² pour une meilleure différenciation
+                    range_color=[0, 25000],
                     opacity=0.6
                 )
                 fig_scatter.update_layout(height=600)
