@@ -667,25 +667,25 @@ if df is not None:
         st.markdown("---")
         
         # ============================================
-        # 4. DIAGRAMME DE CORRÉLATION SURFACE/PRIX
+        # 4. DIAGRAMME DE CORRÉLATION SURFACE/PRIX AU M²
         # ============================================
-        st.header("🔗 Corrélation entre surface et prix")
+        st.header("🔗 Corrélation entre surface et prix au m²")
         
-        if 'surface' in df_filtered.columns and 'prix' in df_filtered.columns:
+        if 'surface' in df_filtered.columns and 'prix_m2' in df_filtered.columns:
             # Filtrer les valeurs aberrantes
-            df_corr = df_filtered[(df_filtered['surface'] <= 500) & (df_filtered['prix'] <= 5000000)]
+            df_corr = df_filtered[(df_filtered['surface'] <= 500) & (df_filtered['prix_m2'] <= 25000)]
             
             if len(df_corr) > 0:                
                 # Scatter plot avec Plotly
                 fig_scatter = px.scatter(
                     df_corr,
                     x='surface',
-                    y='prix',
+                    y='prix_m2',
                     color='prix_m2',
                     size='prix',
                     hover_data=['ville', 'type_bien_categorie'] if 'ville' in df_corr.columns else ['type_bien_categorie'],
-                    labels={'surface': 'Surface (m²)', 'prix': 'Prix (€)', 'prix_m2': 'Prix/m² (€)'},
-                    title="Relation entre surface et prix",
+                    labels={'surface': 'Surface (m²)', 'prix_m2': 'Prix au m² (€/m²)', 'prix': 'Prix (€)'},
+                    title="Relation entre surface et prix au m²",
                     color_continuous_scale='viridis',
                     range_color=[0, 25000],
                     opacity=0.6
@@ -693,8 +693,8 @@ if df is not None:
                 fig_scatter.update_layout(height=600)
                 st.plotly_chart(fig_scatter, use_container_width=True)
                 
-                # Calculer le coefficient de corrélation
-                correlation = df_corr['surface'].corr(df_corr['prix'])
+                # Calculer le coefficient de corrélation entre surface et prix_m2
+                correlation = df_corr['surface'].corr(df_corr['prix_m2'])
                 st.metric("Coefficient de corrélation", f"{correlation:.3f}")
                 
                 # Graphiques de distribution
@@ -711,14 +711,14 @@ if df is not None:
                     st.plotly_chart(fig_hist_surface, use_container_width=True)
                 
                 with col2:
-                    fig_hist_prix = px.histogram(
+                    fig_hist_prix_m2 = px.histogram(
                         df_corr,
-                        x='prix',
+                        x='prix_m2',
                         nbins=50,
-                        labels={'prix': 'Prix (€)', 'count': 'Nombre d\'annonces'},
-                        title="Distribution des prix"
+                        labels={'prix_m2': 'Prix au m² (€/m²)', 'count': 'Nombre d\'annonces'},
+                        title="Distribution des prix au m²"
                     )
-                    st.plotly_chart(fig_hist_prix, use_container_width=True)
+                    st.plotly_chart(fig_hist_prix_m2, use_container_width=True)
 
 else:
     st.error("❌ Impossible de charger les données. Vérifiez que le fichier existe dans DATA/Fusion_notaires_seloger/")
