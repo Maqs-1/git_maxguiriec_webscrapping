@@ -31,6 +31,56 @@ st.markdown("""
     button[title="Close sidebar"] {
         display: none !important;
     }
+    
+    /* Style professionnel pour toute l'application */
+    .main-header {
+        color: #1a365d !important;
+        font-weight: 600 !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    .sub-header {
+        color: #2d3748 !important;
+        font-weight: 500 !important;
+        border-bottom: 2px solid #e2e8f0 !important;
+        padding-bottom: 0.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Améliorer les métriques */
+    .metric-container {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        margin: 8px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.07) !important;
+        border: 1px solid #e2e8f0 !important;
+        transition: transform 0.2s ease !important;
+    }
+    
+    .metric-container:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Style des info/warning boxes */
+    .stAlert {
+        border-radius: 8px !important;
+        border: none !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+    }
+    
+    /* Améliorer les boutons et contrôles */
+    .stButton button {
+        border-radius: 6px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -318,7 +368,7 @@ if df is not None:
     # SIDEBAR AVEC LES FILTRES
     # ============================================
     with st.sidebar:
-        st.header("🔍 Filtres de recherche")
+        st.header("Filtres de recherche")
         
         # Filtres principaux
         st.subheader("Filtres principaux")
@@ -429,31 +479,73 @@ if df is not None:
     # ============================================
     st.title("Analyse Interactive des Données Immobilières")
     
-    # Métriques après filtrage
-    st.subheader("📊 Résultats après filtrage")
+    # Métriques après filtrage - VERSION AMÉLIORÉE AVEC PLUS DE VISIBILITÉ
+    st.markdown('<h2 class="main-header">Résultats après filtrage</h2>', unsafe_allow_html=True)
     
+    # CSS personnalisé pour agrandir les métriques
+    st.markdown("""
+    <style>
+    .big-metric {
+        font-size: 28px !important;
+        font-weight: bold !important;
+        text-align: center;
+    }
+    .metric-label {
+        font-size: 18px !important;
+        color: #333;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    .metric-value {
+        font-size: 36px !important;
+        font-weight: bold !important;
+        color: #1f77b4;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    .metric-container {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 10px;
+        padding: 15px;
+        margin: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #dee2e6;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Affichage amélioré des métriques avec plus de visibilité
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Nombre d'annonces", f"{len(df_filtered):,}")
+        st.markdown('<div class="metric-label">Nombre d\'annonces</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-value">{len(df_filtered):,}</div>', unsafe_allow_html=True)
     
     with col2:
         if len(df_filtered) > 0:
-            st.metric("Prix moyen", f"{df_filtered['prix'].mean():,.0f} €")
+            prix_moyen = df_filtered['prix'].mean()
+            st.markdown('<div class="metric-label">Prix moyen</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-value">{prix_moyen:,.0f} €</div>', unsafe_allow_html=True)
         else:
-            st.metric("Prix moyen", "N/A")
+            st.markdown('<div class="metric-label">Prix moyen</div>', unsafe_allow_html=True)
+            st.markdown('<div class="metric-value">N/A</div>', unsafe_allow_html=True)
     
     with col3:
         if len(df_filtered) > 0:
-            st.metric("Prix/m² moyen", f"{df_filtered['prix_m2'].mean():,.0f} €/m²")
+            prix_m2_moyen = df_filtered['prix_m2'].mean()
+            st.markdown('<div class="metric-label">Prix/m² moyen</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-value">{prix_m2_moyen:,.0f} €/m²</div>', unsafe_allow_html=True)
         else:
-            st.metric("Prix/m² moyen", "N/A")
+            st.markdown('<div class="metric-label">Prix/m² moyen</div>', unsafe_allow_html=True)
+            st.markdown('<div class="metric-value">N/A</div>', unsafe_allow_html=True)
     
     with col4:
         if len(df_filtered) > 0:
-            st.metric("Surface moyenne", f"{df_filtered['surface'].mean():.1f} m²")
+            surface_moyenne = df_filtered['surface'].mean()
+            st.markdown('<div class="metric-label">Surface moyenne</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-value">{surface_moyenne:.1f} m²</div>', unsafe_allow_html=True)
         else:
-            st.metric("Surface moyenne", "N/A")
+            st.markdown('<div class="metric-label">Surface moyenne</div>', unsafe_allow_html=True)
+            st.markdown('<div class="metric-value">N/A</div>', unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -463,7 +555,7 @@ if df is not None:
         # ============================================
         # 1. HISTOGRAMME DU PRIX AU M² PAR VILLE
         # ============================================
-        st.header("Prix au m² par ville")
+        st.markdown('<h3 class="sub-header">Prix au m² par ville</h3>', unsafe_allow_html=True)
         
         if 'ville' in df_filtered.columns and 'prix_m2' in df_filtered.columns:
             # Calculer le prix moyen par ville (uniquement les villes avec au moins 50 annonces)
@@ -486,11 +578,21 @@ if df is not None:
                     y=prix_par_ville['ville'],
                     orientation='h',
                     labels={'x': 'Prix au m² (€)', 'y': 'Ville'},
-                    title=f"Top 20 des villes par prix au m² moyen (min. 50 annonces)",
+                    title=f"Top 20 des villes par prix au m² moyen",
                     color=prix_par_ville['prix_moyen'].values,
-                    color_continuous_scale='viridis'
+                    color_continuous_scale='Blues',
+                    template='plotly_white'
                 )
-                fig_hist.update_layout(height=600, showlegend=False)
+                fig_hist.update_layout(
+                    height=500,
+                    showlegend=False,
+                    font=dict(size=12, family='Arial'),
+                    title_font=dict(size=16, family='Arial', color='darkblue'),
+                    xaxis_title_font=dict(size=14, family='Arial'),
+                    yaxis_title_font=dict(size=14, family='Arial'),
+                    margin=dict(l=200, r=20, t=60, b=40)
+                )
+                fig_hist.update_coloraxes(showscale=False)  # Masquer la légende de couleur pour simplicité
                 st.plotly_chart(fig_hist, use_container_width=True)
                 
                 # Afficher quelques statistiques
@@ -517,7 +619,7 @@ if df is not None:
             # ============================================
             # SOUS-SECTION 1: CARTE CHOROPLÈTHE PAR DÉPARTEMENT
             # ============================================
-            st.subheader("1️⃣ Prix au m² moyen par département")
+            st.markdown('<h4 style="color: #2d3748; font-weight: 500; margin-bottom: 1rem;">1️⃣ Prix au m² moyen par département</h4>', unsafe_allow_html=True)
 
             try:
                 import json, requests
@@ -563,7 +665,7 @@ if df is not None:
             # ============================================
             # SOUS-SECTION 2: CARTE AVEC MARQUEURS EN GRAPPE
             # ============================================
-            st.subheader("2️⃣ Carte avec clusters de marqueurs")
+            st.markdown('<h4 style="color: #2d3748; font-weight: 500; margin-bottom: 1rem;">2️⃣ Carte avec clusters de marqueurs</h4>', unsafe_allow_html=True)
  
             # Préparer les données pour les cartes
             df_map = df_filtered.dropna(subset=['latitude', 'longitude']).copy()
@@ -611,7 +713,7 @@ if df is not None:
         # ============================================
         # 3. ÉVOLUTION TEMPORELLE DU PRIX MOYEN
         # ============================================
-        st.header("Évolution temporelle du prix moyen")
+        st.markdown('<h3 class="sub-header">📈 Évolution temporelle du prix moyen</h3>', unsafe_allow_html=True)
 
         if 'creationDate' in df_filtered.columns:
             df_temp = df_filtered.dropna(subset=['creationDate', 'prix_m2'])
@@ -625,11 +727,25 @@ if df is not None:
                     x='date_month',
                     y='prix_m2',
                     labels={'date_month': 'Date', 'prix_m2': 'Prix au m² moyen (€)'},
-                    title="Évolution du prix au m² moyen dans le temps",
-                    markers=True
+                    title="Évolution du prix au m² moyen",
+                    markers=True,
+                    template='plotly_white'
                 )
-                fig_evolution.update_traces(line_color='#1f77b4', line_width=3)
-                fig_evolution.update_layout(height=400)
+                fig_evolution.update_traces(
+                    line_color='#2563eb',
+                    line_width=3,
+                    marker=dict(size=8, color='#2563eb', line=dict(width=2, color='white'))
+                )
+                fig_evolution.update_layout(
+                    height=400,
+                    font=dict(size=12, family='Arial'),
+                    title_font=dict(size=16, family='Arial', color='darkblue'),
+                    xaxis_title_font=dict(size=14, family='Arial'),
+                    yaxis_title_font=dict(size=14, family='Arial'),
+                    margin=dict(l=20, r=20, t=60, b=40),
+                    xaxis=dict(showgrid=True, gridcolor='lightgray'),
+                    yaxis=dict(showgrid=True, gridcolor='lightgray')
+                )
                 st.plotly_chart(fig_evolution, use_container_width=True)
             else:
                 st.warning("⚠️ Aucune donnée temporelle disponible.")
@@ -641,7 +757,7 @@ if df is not None:
             # Alternative : Analyse par source de données
             if 'source' in df_filtered.columns:
                 st.markdown("---")
-                st.subheader("📊 Analyse alternative : Prix moyen par source de données")
+                st.markdown('<h4 style="color: #2d3748; font-weight: 500; margin-bottom: 1rem;">📊 Analyse alternative : Prix moyen par source de données</h4>', unsafe_allow_html=True)
 
                 prix_par_source = df_filtered.groupby('source')['prix_m2'].agg(['mean', 'count']).round(2)
                 prix_par_source = prix_par_source.sort_values('mean', ascending=False)
@@ -653,9 +769,20 @@ if df is not None:
                     labels={'mean': 'Prix au m² moyen (€)', 'source': 'Source'},
                     title="Prix au m² moyen par source de données",
                     color='mean',
-                    color_continuous_scale='viridis'
+                    color_continuous_scale='Blues',
+                    template='plotly_white'
                 )
-                fig_source.update_layout(height=400)
+                fig_source.update_layout(
+                    height=400,
+                    font=dict(size=12, family='Arial'),
+                    title_font=dict(size=16, family='Arial', color='darkblue'),
+                    xaxis_title_font=dict(size=14, family='Arial'),
+                    yaxis_title_font=dict(size=14, family='Arial'),
+                    margin=dict(l=20, r=20, t=60, b=40),
+                    xaxis=dict(showgrid=False),
+                    yaxis=dict(showgrid=True, gridcolor='lightgray')
+                )
+                fig_source.update_coloraxes(showscale=False)  # Masquer la légende de couleur
                 st.plotly_chart(fig_source, use_container_width=True)
 
                 # Tableau des résultats
@@ -669,44 +796,67 @@ if df is not None:
         # ============================================
         # 4. DIAGRAMME DE CORRÉLATION SURFACE/PRIX AU M²
         # ============================================
-        st.header("🔗 Corrélation entre surface et prix au m²")
+        st.markdown('<h3 class="sub-header">🔗 Corrélation entre surface et prix au m²</h3>', unsafe_allow_html=True)
         
         if 'surface' in df_filtered.columns and 'prix_m2' in df_filtered.columns:
             # Filtrer les valeurs aberrantes
             df_corr = df_filtered[(df_filtered['surface'] <= 500) & (df_filtered['prix_m2'] <= 25000)]
             
             if len(df_corr) > 0:                
-                # Scatter plot avec Plotly
+                # Scatter plot avec Plotly - Version simplifiée et professionnelle
                 fig_scatter = px.scatter(
                     df_corr,
                     x='surface',
                     y='prix_m2',
-                    color='prix_m2',
-                    size='prix',
-                    hover_data=['ville', 'type_bien_categorie'] if 'ville' in df_corr.columns else ['type_bien_categorie'],
-                    labels={'surface': 'Surface (m²)', 'prix_m2': 'Prix au m² (€/m²)', 'prix': 'Prix (€)'},
+                    labels={'surface': 'Surface (m²)', 'prix_m2': 'Prix au m² (€)'},
                     title="Relation entre surface et prix au m²",
-                    color_continuous_scale='viridis',
-                    range_color=[0, 25000],
-                    opacity=0.6
+                    opacity=0.7,
+                    template='plotly_white'
                 )
-                fig_scatter.update_layout(height=600)
+                fig_scatter.update_traces(
+                    marker=dict(
+                        color='#2563eb',
+                        size=6,
+                        line=dict(width=1, color='white'),
+                        opacity=0.7
+                    )
+                )
+                fig_scatter.update_layout(
+                    height=500,
+                    font=dict(size=12, family='Arial'),
+                    title_font=dict(size=16, family='Arial', color='darkblue'),
+                    xaxis_title_font=dict(size=14, family='Arial'),
+                    yaxis_title_font=dict(size=14, family='Arial'),
+                    margin=dict(l=20, r=20, t=60, b=40),
+                    xaxis=dict(showgrid=True, gridcolor='lightgray'),
+                    yaxis=dict(showgrid=True, gridcolor='lightgray')
+                )
                 st.plotly_chart(fig_scatter, use_container_width=True)
                 
                 # Calculer le coefficient de corrélation entre surface et prix_m2
                 correlation = df_corr['surface'].corr(df_corr['prix_m2'])
                 st.metric("Coefficient de corrélation", f"{correlation:.3f}")
                 
-                # Graphiques de distribution
+                # Graphiques de distribution - Version simplifiée
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     fig_hist_surface = px.histogram(
                         df_corr,
                         x='surface',
-                        nbins=50,
+                        nbins=30,
                         labels={'surface': 'Surface (m²)', 'count': 'Nombre d\'annonces'},
-                        title="Distribution des surfaces"
+                        title="Distribution des surfaces",
+                        template='plotly_white',
+                        color_discrete_sequence=['#2563eb']
+                    )
+                    fig_hist_surface.update_layout(
+                        height=350,
+                        font=dict(size=11, family='Arial'),
+                        title_font=dict(size=14, family='Arial', color='darkblue'),
+                        margin=dict(l=20, r=20, t=40, b=20),
+                        xaxis=dict(showgrid=False),
+                        yaxis=dict(showgrid=True, gridcolor='lightgray')
                     )
                     st.plotly_chart(fig_hist_surface, use_container_width=True)
                 
@@ -714,9 +864,19 @@ if df is not None:
                     fig_hist_prix_m2 = px.histogram(
                         df_corr,
                         x='prix_m2',
-                        nbins=50,
-                        labels={'prix_m2': 'Prix au m² (€/m²)', 'count': 'Nombre d\'annonces'},
-                        title="Distribution des prix au m²"
+                        nbins=30,
+                        labels={'prix_m2': 'Prix au m² (€)', 'count': 'Nombre d\'annonces'},
+                        title="Distribution des prix au m²",
+                        template='plotly_white',
+                        color_discrete_sequence=['#2563eb']
+                    )
+                    fig_hist_prix_m2.update_layout(
+                        height=350,
+                        font=dict(size=11, family='Arial'),
+                        title_font=dict(size=14, family='Arial', color='darkblue'),
+                        margin=dict(l=20, r=20, t=40, b=20),
+                        xaxis=dict(showgrid=False),
+                        yaxis=dict(showgrid=True, gridcolor='lightgray')
                     )
                     st.plotly_chart(fig_hist_prix_m2, use_container_width=True)
 

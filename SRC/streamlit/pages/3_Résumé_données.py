@@ -5,7 +5,6 @@ from pathlib import Path
 
 st.set_page_config(
     page_title="Résumé des données - Analyse Immobilière",
-    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -93,6 +92,64 @@ st.markdown("""
     button[title="Close sidebar"] {
         display: none !important;
     }
+    
+    /* Style professionnel pour toute l'application */
+    .main-header {
+        color: #1a365d !important;
+        font-weight: 600 !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    .sub-header {
+        color: #2d3748 !important;
+        font-weight: 500 !important;
+        border-bottom: 2px solid #e2e8f0 !important;
+        padding-bottom: 0.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Améliorer les métriques */
+    .metric-container {
+        background: linear-gradient(135deg, #f8fafc 0%, #e9ecef 100%) !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        margin: 8px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.07) !important;
+        border: 1px solid #e2e8f0 !important;
+        transition: transform 0.2s ease !important;
+    }
+    
+    .metric-container:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Style des info/warning boxes */
+    .stAlert {
+        border-radius: 8px !important;
+        border: none !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+    }
+    
+    /* Améliorer les boutons et contrôles */
+    .stButton button {
+        border-radius: 6px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    }
+    
+    /* Améliorer les radio buttons */
+    .stRadio > div {
+        background: #f8fafc !important;
+        padding: 15px !important;
+        border-radius: 8px !important;
+        border: 1px solid #e2e8f0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,7 +214,7 @@ if df is not None:
     # ============================================
     # INFORMATIONS GÉNÉRALES
     # ============================================
-    st.header("Informations générales")
+    st.markdown('<h2 class="main-header">Informations générales</h2>', unsafe_allow_html=True)
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -190,30 +247,56 @@ if df is not None:
     # ============================================
     # ORIGINES DES DONNÉES
     # ============================================
-    st.header("Origines des données")
+    st.markdown('<h2 class="main-header">Origines des données</h2>', unsafe_allow_html=True)
     
     if 'source' in df.columns:
-        col1, col2 = st.columns(2)
+        # Toggle pour choisir entre diagramme et tableau
+        view_mode_source = st.radio(
+            "Affichage pour les origines des données:",
+            ["Diagramme", "Tableau"],
+            horizontal=True,
+            key="source_view_mode"
+        )
         
-        with col1:
-            # Répartition par source
+        if view_mode_source == "Diagramme":
+            # Répartition par source - Version améliorée
             source_counts = df['source'].value_counts()
             fig_source = px.pie(
                 values=source_counts.values,
                 names=source_counts.index,
-                title="Répartition par source de données"
+                title="Répartition par source de données",
+                template='plotly_white',
+                color_discrete_sequence=px.colors.qualitative.Pastel
             )
+            fig_source.update_layout(
+                height=600,
+                font=dict(size=14, family='Arial'),
+                title_font=dict(size=18, family='Arial', color='darkblue'),
+                margin=dict(l=20, r=20, t=60, b=20)
+            )
+            fig_source.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_source, use_container_width=True)
-        
-        with col2:
-            # Tableau détaillé
+        else:
+            # Tableau détaillé - Version améliorée
             source_stats = df.groupby('source').agg({
                 'prix': ['count', 'mean', 'median'],
                 'prix_m2': 'mean',
                 'surface': 'mean'
             }).round(2)
             source_stats.columns = ['Nombre', 'Prix moyen (€)', 'Prix médian (€)', 'Prix/m² moyen (€)', 'Surface moyenne (m²)']
-            st.dataframe(source_stats, use_container_width=True)
+            
+            # Style amélioré pour le dataframe
+            st.dataframe(
+                source_stats.style.format({
+                    'Nombre': '{:,.0f}',
+                    'Prix moyen (€)': '{:,.0f} €',
+                    'Prix médian (€)': '{:,.0f} €',
+                    'Prix/m² moyen (€)': '{:,.0f} €',
+                    'Surface moyenne (m²)': '{:.1f} m²'
+                }).background_gradient(cmap='Greens', subset=['Nombre']),
+                use_container_width=True,
+                height=400
+            )
     else:
         st.info("ℹ️ Information sur les sources non disponible.")
     
@@ -222,7 +305,7 @@ if df is not None:
     # ============================================
     # STATISTIQUES DESCRIPTIVES
     # ============================================
-    st.header("Statistiques descriptives")
+    st.markdown('<h2 class="main-header">Statistiques descriptives</h2>', unsafe_allow_html=True)
     
     if 'prix' in df.columns and 'surface' in df.columns and 'prix_m2' in df.columns:
         # Filtrer les valeurs valides
@@ -248,84 +331,38 @@ if df is not None:
     st.markdown("---")
     
     # ============================================
-    # RÉPARTITION GÉOGRAPHIQUE
-    # ============================================
-    st.header("Répartition géographique")
-    
-    if 'departement' in df.columns:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Top 20 départements par nombre d'annonces (triés par nombre décroissant)
-            dept_counts = df['departement'].value_counts().head(20)
-            
-            # Créer un mapping des numéros vers les noms formatés
-            dept_dict = {}
-            try:
-                import sys
-                from pathlib import Path
-                config_path = Path(__file__).parent.parent.parent / 'scrapper' / 'seloger' / 'config.py'
-                sys.path.append(str(config_path.parent))
-                from config import departements as departements_config
-                dept_dict = {dept['numero']: dept['nom'] for dept in departements_config}
-            except:
-                pass
-            
-            # Formater les labels des départements
-            dept_labels = []
-            for dept_num in dept_counts.index:
-                dept_str = str(dept_num)
-                dept_name = dept_dict.get(dept_str, f"Département {dept_str}")
-                dept_labels.append(f"{dept_name} ({dept_str})")
-            
-            # Calculer la hauteur dynamique (30 pixels par barre + marges)
-            dynamic_height = max(400, len(dept_labels) * 30 + 100)
-            
-            fig_dept = px.bar(
-                x=dept_counts.values,
-                y=dept_labels,
-                orientation='h',
-                labels={'x': 'Nombre d\'annonces', 'y': 'Département'},
-                title="Top 20 départements par nombre d'annonces"
-            )
-            fig_dept.update_layout(height=500)
-            st.plotly_chart(fig_dept, use_container_width=True)
-        
-        with col2:
-            # Top 20 villes par nombre d'annonces
-            if 'ville' in df.columns:
-                ville_counts = df['ville'].value_counts().head(20)
-                fig_ville = px.bar(
-                    x=ville_counts.values,
-                    y=ville_counts.index,
-                    orientation='h',
-                    labels={'x': 'Nombre d\'annonces', 'y': 'Ville'},
-                    title="Top 20 villes par nombre d'annonces"
-                )
-                fig_ville.update_layout(height=500)
-                st.plotly_chart(fig_ville, use_container_width=True)
-    
-    st.markdown("---")
-    
-    # ============================================
     # RÉPARTITION PAR TYPE DE BIEN
     # ============================================
-    st.header("Répartition par type de bien")
+    st.markdown('<h2 class="main-header">Répartition par type de bien</h2>', unsafe_allow_html=True)
     
     if 'type_bien_categorie' in df.columns:
-        col1, col2 = st.columns(2)
+        # Toggle pour choisir entre diagramme et tableau
+        view_mode_type = st.radio(
+            "Affichage pour les types de biens:",
+            ["Diagramme", "Tableau"],
+            horizontal=True,
+            key="type_view_mode"
+        )
         
-        with col1:
+        if view_mode_type == "Diagramme":
             type_counts = df['type_bien_categorie'].value_counts()
             fig_type = px.pie(
                 values=type_counts.values,
                 names=type_counts.index,
-                title="Répartition par type de bien (regroupé)"
+                title="Répartition par type de bien (regroupé)",
+                template='plotly_white',
+                color_discrete_sequence=px.colors.qualitative.Set3
             )
+            fig_type.update_layout(
+                height=600,
+                font=dict(size=14, family='Arial'),
+                title_font=dict(size=18, family='Arial', color='darkblue'),
+                margin=dict(l=20, r=20, t=60, b=20)
+            )
+            fig_type.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_type, use_container_width=True)
-        
-        with col2:
-            # Statistiques par type de bien
+        else:
+            # Statistiques par type de bien - Version améliorée
             if 'prix' in df.columns and 'prix_m2' in df.columns:
                 type_stats = df.groupby('type_bien_categorie').agg({
                     'prix': ['count', 'mean'],
@@ -333,14 +370,25 @@ if df is not None:
                     'surface': 'mean'
                 }).round(2)
                 type_stats.columns = ['Nombre', 'Prix moyen (€)', 'Prix/m² moyen (€)', 'Surface moyenne (m²)']
-                st.dataframe(type_stats, use_container_width=True)
+                
+                # Style amélioré pour le dataframe
+                st.dataframe(
+                    type_stats.style.format({
+                        'Nombre': '{:,.0f}',
+                        'Prix moyen (€)': '{:,.0f} €',
+                        'Prix/m² moyen (€)': '{:,.0f} €',
+                        'Surface moyenne (m²)': '{:.1f} m²'
+                    }).background_gradient(cmap='Blues', subset=['Nombre']),
+                    use_container_width=True,
+                    height=400
+                )
     
     st.markdown("---")
     
     # ============================================
     # EXPORT DES DONNÉES
     # ============================================
-    st.header("Export des données")
+    st.markdown('<h2 class="main-header">Export des données</h2>', unsafe_allow_html=True)
     
     st.markdown("""
     Les données sont stockées dans :
